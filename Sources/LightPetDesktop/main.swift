@@ -1,5 +1,6 @@
 import AppKit
 import CoreGraphics
+import Darwin
 import Foundation
 
 private let cellWidth = 192
@@ -161,6 +162,7 @@ private struct LaunchOptions {
     var initialState = "idle"
     var scale: CGFloat = 2
     var showDock = false
+    var runResizeSmokeTest = false
 
     static func parse(arguments: [String]) throws -> LaunchOptions {
         var options = LaunchOptions()
@@ -190,6 +192,8 @@ private struct LaunchOptions {
                 options.scale = CGFloat(value)
             case "--show-dock":
                 options.showDock = true
+            case "--resize-smoke-test":
+                options.runResizeSmokeTest = true
             case "--help", "-h":
                 throw LaunchError.helpRequested
             default:
@@ -436,6 +440,10 @@ private final class PetStateController {
 private final class PetPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
+
+    override func close() {
+        orderOut(nil)
+    }
 }
 
 @MainActor
@@ -446,6 +454,8 @@ private protocol PetAnimationViewMenuDelegate: AnyObject {
     func petViewResetPosition(_ view: PetAnimationView)
     func petView(_ view: PetAnimationView, setScale scale: CGFloat)
     func petView(_ view: PetAnimationView, selectPetAt manifestURL: URL)
+    func petViewWillOpenContextMenu(_ view: PetAnimationView)
+    func petViewDidCloseContextMenu(_ view: PetAnimationView)
     func petViewQuit(_ view: PetAnimationView)
 }
 
@@ -667,6 +677,10 @@ private final class PetAnimationView: NSView {
         quit.target = self
         menu.addItem(quit)
 
+        menuDelegate?.petViewWillOpenContextMenu(self)
+        defer {
+            menuDelegate?.petViewDidCloseContextMenu(self)
+        }
         NSMenu.popUpContextMenu(menu, with: event, for: self)
     }
 
@@ -674,14 +688,33 @@ private final class PetAnimationView: NSView {
         guard let number = sender.representedObject as? NSNumber else {
             return
         }
-        menuDelegate?.petView(self, setScale: CGFloat(number.doubleValue))
+        let scale = CGFloat(number.doubleValue)
+        DispatchQueue.main.async { [weak self] in
+            guard let self else {
+                return
+            }
+            menuDelegate?.petView(self, setScale: scale)
+        }
     }
 
     @objc private func selectPet(_ sender: NSMenuItem) {
+        let selectedURL: URL?
         if let url = sender.representedObject as? URL {
-            menuDelegate?.petView(self, selectPetAt: url)
+            selectedURL = url
         } else if let url = sender.representedObject as? NSURL {
-            menuDelegate?.petView(self, selectPetAt: url as URL)
+            selectedURL = url as URL
+        } else {
+            selectedURL = nil
+        }
+
+        guard let selectedURL else {
+            return
+        }
+        DispatchQueue.main.async { [weak self] in
+            guard let self else {
+                return
+            }
+            menuDelegate?.petView(self, selectPetAt: selectedURL)
         }
     }
 
@@ -694,6 +727,7 @@ private final class PetAnimationView: NSView {
     }
 }
 
+@MainActor
 private final class AppDelegate: NSObject, NSApplicationDelegate {
     private let options: LaunchOptions
     private var currentPackage: PetPackage
@@ -701,6 +735,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     private var panel: PetPanel?
     private weak var petView: PetAnimationView?
     private var pointerTimer: Timer?
+    private var isContextMenuOpen = false
 
     init(options: LaunchOptions, package: PetPackage) {
         self.options = options
@@ -723,6 +758,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.backgroundColor = .clear
         panel.isOpaque = false
         panel.hasShadow = false
+        panel.hidesOnDeactivate = false
         panel.level = .floating
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.acceptsMouseMovedEvents = true
@@ -735,6 +771,10 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
 
         print("LightPetDesktop loaded \(currentPackage.manifest.displayName) from \(currentPackage.manifestURL.path)")
         print("Mouse-only states: hover=waiting, press=waving, drag=running-left/right, double-click=jumping.")
+
+        if options.runResizeSmokeTest {
+            runResizeSmokeTest(view: petView)
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -742,7 +782,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        true
+        false
     }
 
     private func startPointerRoutingTimer(panel: PetPanel, petView: PetAnimationView) {
@@ -751,15 +791,44 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
                 guard let panel, let petView else {
                     return
                 }
-                let insideVisibleSprite = petView.containsVisiblePixel(screenPoint: NSEvent.mouseLocation)
-                if !petView.isDragging {
-                    panel.ignoresMouseEvents = !insideVisibleSprite
+                guard !self.isContextMenuOpen else {
+                    panel.ignoresMouseEvents = false
+                    return
                 }
+                let insideVisibleSprite = petView.containsVisiblePixel(screenPoint: NSEvent.mouseLocation)
+                panel.ignoresMouseEvents = false
                 petView.updatePointerPresence(insideVisibleSprite: insideVisibleSprite)
             }
         }
         pointerTimer = timer
         RunLoop.main.add(timer, forMode: .common)
+    }
+
+    private func runResizeSmokeTest(view: PetAnimationView) {
+        let scales: [CGFloat] = [1, 2, 1.5]
+        for (index, scale) in scales.enumerated() {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25 * Double(index + 1)) { [weak self, weak view] in
+                guard let self, let view else {
+                    print("Resize smoke test failed: app objects were released.")
+                    exit(1)
+                }
+                self.petView(view, setScale: scale)
+                guard let panel = self.panel else {
+                    print("Resize smoke test failed: panel is missing.")
+                    exit(1)
+                }
+                let expected = NSSize(width: CGFloat(cellWidth) * scale, height: CGFloat(cellHeight) * scale)
+                let actual = panel.frame.size
+                guard abs(actual.width - expected.width) < 0.5, abs(actual.height - expected.height) < 0.5 else {
+                    print("Resize smoke test failed: expected \(expected), got \(actual).")
+                    exit(1)
+                }
+                print("Resize smoke test scale \(formatScale(scale))x ok: \(Int(actual.width))x\(Int(actual.height))")
+                if index == scales.count - 1 {
+                    NSApp.terminate(nil)
+                }
+            }
+        }
     }
 }
 
@@ -799,6 +868,8 @@ extension AppDelegate: PetAnimationViewMenuDelegate {
         let newSize = NSSize(width: CGFloat(cellWidth) * scale, height: CGFloat(cellHeight) * scale)
         let proposedOrigin = NSPoint(x: oldCenter.x - newSize.width / 2, y: oldCenter.y - newSize.height / 2)
         panel.setFrame(NSRect(origin: clampedWindowOrigin(proposedOrigin, size: newSize), size: newSize), display: true)
+        panel.ignoresMouseEvents = false
+        panel.orderFrontRegardless()
     }
 
     func petView(_ view: PetAnimationView, selectPetAt manifestURL: URL) {
@@ -811,6 +882,21 @@ extension AppDelegate: PetAnimationViewMenuDelegate {
         } catch {
             showSwitchPetError(error)
         }
+    }
+
+    func petViewWillOpenContextMenu(_ view: PetAnimationView) {
+        isContextMenuOpen = true
+        panel?.ignoresMouseEvents = false
+    }
+
+    func petViewDidCloseContextMenu(_ view: PetAnimationView) {
+        isContextMenuOpen = false
+        guard let panel, let petView else {
+            return
+        }
+        let insideVisibleSprite = petView.containsVisiblePixel(screenPoint: NSEvent.mouseLocation)
+        panel.ignoresMouseEvents = false
+        petView.updatePointerPresence(insideVisibleSprite: insideVisibleSprite)
     }
 
     func petViewQuit(_ view: PetAnimationView) {
@@ -864,11 +950,14 @@ private func visibleScreenUnion() -> NSRect {
     return union
 }
 
+private var strongAppDelegate: AppDelegate?
+
 do {
     let options = try LaunchOptions.parse(arguments: CommandLine.arguments)
     let package = try loadPetPackage(options: options)
     let app = NSApplication.shared
     let delegate = AppDelegate(options: options, package: package)
+    strongAppDelegate = delegate
     app.delegate = delegate
     app.setActivationPolicy(options.showDock ? .regular : .accessory)
     app.run()

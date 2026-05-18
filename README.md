@@ -41,6 +41,14 @@ Pet lookup:
 
 Without `--pet`, the desktop wrapper tries `sample-pets/<pet-id>/pet.json`, then `${CODEX_HOME:-~/.codex}/pets/<pet-id>/pet.json`.
 
+Resize smoke test:
+
+```bash
+swift run LightPetDesktop --show-dock --resize-smoke-test
+```
+
+This opens the native panel, switches through `1x`, `2x`, and `1.5x`, verifies the actual window size, then exits.
+
 The default sample package is copied from:
 
 ```text
