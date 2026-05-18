@@ -1,5 +1,24 @@
 # Codex Pet Implementation Notes
 
+## Project Boundary
+
+LightPet is only a player and desktop presentation wrapper for existing Codex-compatible pet packages. It is responsible for:
+
+- Reading `pet.json`.
+- Loading and validating `spritesheet.webp`.
+- Mapping mouse actions to existing animation rows.
+- Showing size and pet-package choices in the desktop right-click menu.
+
+It is not responsible for:
+
+- Generating pet artwork.
+- Repairing broken rows or transparent backgrounds.
+- Prompt planning for image generation.
+- Packaging generated files.
+- Integrating animation states with external app or software events.
+
+Use the `hatch-pet` skill or another asset pipeline to create packages that match the contract below.
+
 ## Runtime Contract
 
 Codex custom pets are local asset packages under:
@@ -21,7 +40,7 @@ The manifest is intentionally small:
 }
 ```
 
-The app discovers pets by folder name, reads `pet.json`, then loads the spritesheet named by `spritesheetPath`.
+The app discovers pets by folder name, reads `pet.json`, then loads the spritesheet named by `spritesheetPath`. For right-click folder selection, LightPet expects the selected folder to contain `pet.json` and `spritesheet.webp`, and expects `pet.json` to set `"spritesheetPath": "spritesheet.webp"`.
 
 ## Atlas Geometry
 
@@ -34,6 +53,8 @@ cell:  192x208
 ```
 
 The player does not need per-frame rectangles in the manifest. A state maps to a fixed atlas row, and a frame index maps to a fixed column. Unused cells after the last used column in a row must stay fully transparent.
+
+`spritesheet.webp` should contain the pet only, on a transparent background. Each used frame must keep the same pet identity, silhouette, palette, outline style, and proportions. Avoid text, UI, speech bubbles, shadows, guide boxes, frame numbers, detached motion lines, loose sparkles, or decorative effects that are separate from the pet body.
 
 ## Animation Table
 
@@ -48,6 +69,20 @@ The player does not need per-frame rectangles in the manifest. A state maps to a
 | 6 | waiting | 6 | 150 ms each, final 260 ms |
 | 7 | running | 6 | 120 ms each, final 220 ms |
 | 8 | review | 6 | 150 ms each, final 280 ms |
+
+Prompting guidance for `hatch-pet` or another generator:
+
+| State | Visual Intent |
+| --- | --- |
+| `idle` | Calm resting loop with subtle breathing, blink, or small posture shift. |
+| `running-right` | Eight-frame right-facing locomotion using body and limb motion only. |
+| `running-left` | Eight-frame left-facing locomotion; mirror only when identity and accessories stay correct. |
+| `waving` | Friendly wave expressed through limb pose; no wave marks or floating symbols. |
+| `jumping` | Body moves vertically through the cells; no floor shadow, dust, or impact marks. |
+| `failed` | Failed, dizzy, or sad reaction; attached small tears, stars, or smoke are acceptable if hard-edged and compact. |
+| `waiting` | Attentive hover state, looking ready for interaction. |
+| `running` | Direction-neutral running-in-place loop. |
+| `review` | Focused thinking or inspection pose using face, head tilt, or paw position. |
 
 ## Playback Logic
 
@@ -106,25 +141,25 @@ The right-click menu intentionally does not list animation states. States are se
 Additional desktop behavior:
 
 - Pet choices are discovered from `sample-pets/*/pet.json` and `${CODEX_HOME:-~/.codex}/pets/*/pet.json`.
+- The right-click `Pet` submenu includes `Choose Pet Folder...`; it loads a selected directory only when that directory contains `pet.json` and `spritesheet.webp`.
+- To make a pet appear in the menu on every launch, put its folder under `sample-pets/<pet-id>/` or `${CODEX_HOME:-~/.codex}/pets/<pet-id>/`.
 - Window size can be changed from the right-click menu.
 - Hit testing samples the current frame alpha map, so transparent sprite pixels do not start pet interaction.
 - Dragging is clamped to the visible screen union to keep the pet reachable.
 
 This is the practical minimum for a desktop pet. More advanced behavior should be added as explicit mouse or desktop-environment triggers on top of the same state-controller boundary. Software integration events are intentionally out of scope for now.
 
-## Asset Creation Pipeline
+## External Asset Creation
 
-The `hatch-pet` skill handles asset creation around the same contract:
+Pet generation stays outside this repository. A generator such as the `hatch-pet` skill should produce the final folder:
 
-- Prepare a pet run folder and image generation manifest.
-- Generate a base reference image.
-- Generate or mirror row strips for the nine animation states.
-- Extract frames into `192x208` cells.
-- Compose the final `1536x1872` atlas.
-- Validate transparent unused cells and non-empty used cells.
-- Package `pet.json` and `spritesheet.webp` into `${CODEX_HOME}/pets/<pet-id>/`.
+```text
+<pet-id>/
+├── pet.json
+└── spritesheet.webp
+```
 
-The deterministic scripts validate geometry and packaging, but visual consistency still needs manual review through the generated contact sheet and preview videos.
+For a package to work here, the generated spritesheet must already be transparent, correctly sized, row-aligned, visually consistent, and free of non-transparent unused cells. LightPet validates these runtime requirements but does not repair them.
 
 ## Current Workspace Reproduction
 

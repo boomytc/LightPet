@@ -257,6 +257,23 @@ private func loadPetPackage(options: LaunchOptions) throws -> PetPackage {
     return try loadPetPackage(manifestURL: manifestURL)
 }
 
+private func loadPetPackage(directoryURL: URL) throws -> PetPackage {
+    let manifestURL = directoryURL.appendingPathComponent("pet.json").standardizedFileURL
+    guard FileManager.default.fileExists(atPath: manifestURL.path) else {
+        throw RuntimeError("Selected folder must contain pet.json.")
+    }
+    let spritesheetURL = directoryURL.appendingPathComponent("spritesheet.webp").standardizedFileURL
+    guard FileManager.default.fileExists(atPath: spritesheetURL.path) else {
+        throw RuntimeError("Selected folder must contain spritesheet.webp.")
+    }
+    let data = try Data(contentsOf: manifestURL)
+    let manifest = try JSONDecoder().decode(PetManifest.self, from: data)
+    guard manifest.spritesheetPath == "spritesheet.webp" else {
+        throw RuntimeError("pet.json must set spritesheetPath to spritesheet.webp.")
+    }
+    return try loadPetPackage(manifestURL: manifestURL)
+}
+
 private func loadPetPackage(manifestURL: URL) throws -> PetPackage {
     let data = try Data(contentsOf: manifestURL)
     let manifest = try JSONDecoder().decode(PetManifest.self, from: data)
@@ -298,18 +315,31 @@ private func discoverPetChoices() -> [PetChoice] {
             continue
         }
         seenPaths.insert(manifestURL.path)
-        guard
-            let data = try? Data(contentsOf: manifestURL),
-            let manifest = try? JSONDecoder().decode(PetManifest.self, from: data)
-        else {
+        guard let choice = petChoice(manifestURL: manifestURL) else {
             continue
         }
-        choices.append(PetChoice(manifest: manifest, manifestURL: manifestURL))
+        choices.append(choice)
     }
 
     return choices.sorted {
         $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
     }
+}
+
+private func petChoice(manifestURL: URL) -> PetChoice? {
+    guard
+        let data = try? Data(contentsOf: manifestURL),
+        let manifest = try? JSONDecoder().decode(PetManifest.self, from: data),
+        manifest.spritesheetPath == "spritesheet.webp"
+    else {
+        return nil
+    }
+
+    let spritesheetURL = resolveSpritesheetURL(manifest: manifest, manifestURL: manifestURL)
+    guard FileManager.default.fileExists(atPath: spritesheetURL.path) else {
+        return nil
+    }
+    return PetChoice(manifest: manifest, manifestURL: manifestURL)
 }
 
 private func petManifestURLs(in root: URL) -> [URL] {
@@ -461,6 +491,7 @@ private protocol PetAnimationViewMenuDelegate: AnyObject {
     func petViewResetPosition(_ view: PetAnimationView)
     func petView(_ view: PetAnimationView, setScale scale: CGFloat)
     func petView(_ view: PetAnimationView, selectPetAt manifestURL: URL)
+    func petViewChoosePetFolder(_ view: PetAnimationView)
     func petViewWillOpenContextMenu(_ view: PetAnimationView)
     func petViewDidCloseContextMenu(_ view: PetAnimationView)
     func petViewQuit(_ view: PetAnimationView)
@@ -643,7 +674,7 @@ private final class PetAnimationView: NSView {
 
         let sizeItem = NSMenuItem(title: "Size", action: nil, keyEquivalent: "")
         let sizeMenu = NSMenu()
-        let currentScale = menuDelegate?.currentScale(for: self) ?? 2
+        let currentScale = menuDelegate?.currentScale(for: self) ?? 1
         for scale in availableScales {
             let item = NSMenuItem(title: "\(formatScale(scale))x", action: #selector(selectScale(_:)), keyEquivalent: "")
             item.target = self
@@ -668,7 +699,14 @@ private final class PetAnimationView: NSView {
             let empty = NSMenuItem(title: "No Pets Found", action: nil, keyEquivalent: "")
             empty.isEnabled = false
             petMenu.addItem(empty)
+        } else {
+            petMenu.addItem(.separator())
         }
+
+        let chooseFolder = NSMenuItem(title: "Choose Pet Folder...", action: #selector(choosePetFolder), keyEquivalent: "")
+        chooseFolder.target = self
+        petMenu.addItem(chooseFolder)
+
         menu.addItem(petItem)
         menu.setSubmenu(petMenu, for: petItem)
 
@@ -722,6 +760,15 @@ private final class PetAnimationView: NSView {
                 return
             }
             menuDelegate?.petView(self, selectPetAt: selectedURL)
+        }
+    }
+
+    @objc private func choosePetFolder() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self else {
+                return
+            }
+            menuDelegate?.petViewChoosePetFolder(self)
         }
     }
 
@@ -882,13 +929,41 @@ extension AppDelegate: PetAnimationViewMenuDelegate {
     func petView(_ view: PetAnimationView, selectPetAt manifestURL: URL) {
         do {
             let package = try loadPetPackage(manifestURL: manifestURL)
-            currentPackage = package
-            panel?.title = package.manifest.displayName
-            view.updatePackage(package)
-            print("LightPetDesktop switched to \(package.manifest.displayName) from \(package.manifestURL.path)")
+            switchPet(to: package, view: view)
         } catch {
             showSwitchPetError(error)
         }
+    }
+
+    func petViewChoosePetFolder(_ view: PetAnimationView) {
+        let openPanel = NSOpenPanel()
+        openPanel.title = "Choose Pet Folder"
+        openPanel.message = "Select a folder containing pet.json and spritesheet.webp."
+        openPanel.prompt = "Choose"
+        openPanel.canChooseFiles = false
+        openPanel.canChooseDirectories = true
+        openPanel.allowsMultipleSelection = false
+        openPanel.canCreateDirectories = false
+        openPanel.directoryURL = currentPackage.manifestURL.deletingLastPathComponent()
+
+        NSApp.activate(ignoringOtherApps: true)
+        guard openPanel.runModal() == .OK, let directoryURL = openPanel.url else {
+            return
+        }
+
+        do {
+            let package = try loadPetPackage(directoryURL: directoryURL)
+            switchPet(to: package, view: view)
+        } catch {
+            showSwitchPetError(error)
+        }
+    }
+
+    private func switchPet(to package: PetPackage, view: PetAnimationView) {
+        currentPackage = package
+        panel?.title = package.manifest.displayName
+        view.updatePackage(package)
+        print("LightPetDesktop switched to \(package.manifest.displayName) from \(package.manifestURL.path)")
     }
 
     func petViewWillOpenContextMenu(_ view: PetAnimationView) {
