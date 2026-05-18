@@ -1,0 +1,6 @@
+{
+  "id": "conan",
+  "displayName": "Conan",
+  "description": "A lively pixel-art small desktop detective pet for Codex.",
+  "spritesheetPath": "spritesheet.webp"
+}
