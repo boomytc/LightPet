@@ -103,11 +103,14 @@ sample-pets/<pet-id>/
   "id": "conan",
   "displayName": "Conan",
   "description": "A lively pixel-art small desktop detective pet for Codex.",
-  "spritesheetPath": "spritesheet.webp"
+  "spritesheetPath": "spritesheet.webp",
+  "rendering": "pixelated"
 }
 ```
 
 对于右键文件夹选择，文件夹必须包含 `pet.json`、`spritesheet.webp`，且 `pet.json` 必须设置 `"spritesheetPath": "spritesheet.webp"`。
+
+`rendering` 是可选字段：`pixelated` 用于像素风，`smooth` 用于软萌 3D、手绘、扁平插画等非像素风。省略时默认为 `pixelated`。
 
 ## 精灵表契约
 
@@ -134,7 +137,9 @@ sample-pets/<pet-id>/
 | 7 | `running`（备用拖拽） | 6 | 中性的被拖拽或挣扎循环；当前鼠标逻辑不主动触发，但仍需有效帧。 |
 | 8 | `review`（向下拖拽） | 6 | 向下拖拽时趴在地上，像被压住或被按住。 |
 
-可复制给 `hatch-pet` 或其他生成器的提示词模板：
+LightPet 支持非像素风格。运行时只要求透明 spritesheet 契约；风格可以是像素、手绘、扁平插画、软萌 3D 玩具风等。非像素风建议在 `pet.json` 中设置 `"rendering": "smooth"`，像素风可设置 `"rendering": "pixelated"` 或省略该字段。
+
+有参考图时，优先使用这个提示词模板：
 
 ```text
 Create a LightPet-compatible desktop pet package.
@@ -143,6 +148,13 @@ Package metadata:
 - id: {id}
 - displayName: {displayName}
 - description: {description}
+- rendering: {rendering}
+
+Reference image:
+- Use the attached reference image as the visual source of truth.
+- Preserve the reference character's identity, proportions, silhouette, face, colors, clothing/accessories, material feel, and overall art style.
+- If the reference is a smooth 3D toy-like mascot, keep that soft rounded 3D look instead of converting it to pixel art.
+- Adapt the reference into consistent animation rows for mouse-only desktop pet interactions.
 
 Output contract:
 - Create a folder named {id}.
@@ -154,7 +166,8 @@ Output contract:
     "id": "{id}",
     "displayName": "{displayName}",
     "description": "{description}",
-    "spritesheetPath": "spritesheet.webp"
+    "spritesheetPath": "spritesheet.webp",
+    "rendering": "{rendering}"
   }
 
 spritesheet.webp requirements:
@@ -165,9 +178,63 @@ spritesheet.webp requirements:
 - Each used cell must contain visible pet pixels.
 - Unused cells after each row's frame count must be fully transparent.
 - Keep the same pet identity, silhouette, palette, outline style, and proportions across all rows.
-- Use compact pixel-art mascot styling: readable chibi proportions, thick clear outline, limited palette, flat cel shading, transparent background.
+- Use the reference style consistently. For smooth 3D references, keep soft rounded forms, clean lighting, readable silhouettes, and transparent background.
 - Do not include text, UI, speech bubbles, frame numbers, guide marks, shadows, detached motion lines, loose sparkles, or decorative effects separate from the pet body.
-- Any effect must be small, hard-edged, pixel-style, mouse-action relevant, and attached to the pet silhouette.
+- Any effect must be small, hard-edged, style-consistent, mouse-action relevant, and attached to the pet silhouette.
+
+Animation rows:
+0. idle, 6 frames: calm resting loop with subtle breathing or blinking.
+1. running-right, 8 frames: drag-right pose; the pet is pulled by the right hand, right sleeve, or right side of the body.
+2. running-left, 8 frames: drag-left pose; the pet is pulled by the left hand, left sleeve, or left side of the body.
+3. waving, 4 frames: long-press grabbed pose; the pet looks grabbed and may lightly struggle.
+4. jumping, 5 frames: drag-up pose; the pet is lifted upward or stretched upward by the grab.
+5. failed, 8 frames: click reaction; the pet staggers one step backward, then recovers.
+6. waiting, 6 frames: attentive hover state, looking ready for interaction.
+7. running, 6 frames: spare neutral drag or struggle loop; keep valid frames even if not triggered directly.
+8. review, 6 frames: drag-down pose; the pet lies low or prone, as if pressed down by the cursor.
+```
+
+没有参考图时，使用这个提示词模板：
+
+```text
+Create a LightPet-compatible desktop pet package from text only.
+
+Package metadata:
+- id: {id}
+- displayName: {displayName}
+- description: {description}
+- rendering: {rendering}
+
+Character and style:
+- Design a new desktop pet based on this description: {description}
+- Art style: {style}
+- If {style} is smooth 3D, make the pet look like a soft rounded toy mascot with clean lighting, simple materials, readable silhouette, and transparent background.
+- If {style} is pixel art, use compact readable chibi proportions, crisp silhouette, limited palette, and transparent background.
+- Keep the same identity, proportions, colors, clothing/accessories, and material feel across every row.
+
+Output contract:
+- Create a folder named {id}.
+- The folder must contain exactly this runtime contract:
+  - pet.json
+  - spritesheet.webp
+- pet.json must contain:
+  {
+    "id": "{id}",
+    "displayName": "{displayName}",
+    "description": "{description}",
+    "spritesheetPath": "spritesheet.webp",
+    "rendering": "{rendering}"
+  }
+
+spritesheet.webp requirements:
+- Format: transparent-capable WebP.
+- Exact size: 1536x1872 pixels.
+- Grid: 8 columns x 9 rows.
+- Cell size: 192x208 pixels.
+- Each used cell must contain visible pet pixels.
+- Unused cells after each row's frame count must be fully transparent.
+- Do not include text, UI, speech bubbles, frame numbers, guide marks, shadows, detached motion lines, loose sparkles, or decorative effects separate from the pet body.
+- Any effect must be small, hard-edged, style-consistent, mouse-action relevant, and attached to the pet silhouette.
 
 Animation rows:
 0. idle, 6 frames: calm resting loop with subtle breathing or blinking.

@@ -35,6 +35,7 @@ let timer = 0;
 let playing = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 let scale = Number(scaleInput.value);
 let activeSheetUrl = "";
+let rendering = "pixelated";
 
 function resolveAssetUrl(assetPath, manifestPath) {
   return new URL(assetPath, new URL(manifestPath, window.location.href)).href;
@@ -42,6 +43,9 @@ function resolveAssetUrl(assetPath, manifestPath) {
 
 function setPetPackage(manifest, manifestPath) {
   const spritesheetPath = manifest.spritesheetPath || "spritesheet.webp";
+  rendering = manifest.rendering === "smooth" ? "smooth" : "pixelated";
+  sprite.classList.toggle("smooth", rendering === "smooth");
+  atlasImage.classList.toggle("smooth", rendering === "smooth");
   activeSheetUrl = resolveAssetUrl(spritesheetPath, manifestPath);
 
   petName.textContent = manifest.displayName || manifest.id || "LightPet";

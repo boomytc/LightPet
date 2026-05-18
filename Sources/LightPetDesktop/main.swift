@@ -42,6 +42,11 @@ private struct PetManifest: Decodable {
     let displayName: String
     let description: String
     let spritesheetPath: String
+    let rendering: String?
+
+    var usesSmoothRendering: Bool {
+        rendering == "smooth"
+    }
 }
 
 private struct PetFrame {
@@ -594,7 +599,7 @@ private final class PetAnimationView: NSView {
             return
         }
 
-        context.interpolationQuality = .none
+        context.interpolationQuality = package.manifest.usesSmoothRendering ? .high : .none
         context.saveGState()
         context.translateBy(x: 0, y: bounds.height)
         context.scaleBy(x: 1, y: -1)

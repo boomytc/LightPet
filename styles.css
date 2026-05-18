@@ -147,6 +147,10 @@ h2 {
   image-rendering: crisp-edges;
 }
 
+.sprite.smooth {
+  image-rendering: auto;
+}
+
 .transport {
   padding: 14px;
   border-top: 1px solid var(--line);
@@ -263,6 +267,10 @@ h2 {
   max-width: none;
   height: auto;
   image-rendering: pixelated;
+}
+
+.atlas-frame img.smooth {
+  image-rendering: auto;
 }
 
 @media (max-width: 820px) {
