@@ -72,17 +72,19 @@ The player does not need per-frame rectangles in the manifest. A state maps to a
 
 Prompting guidance for `hatch-pet` or another generator:
 
+The row names stay Codex-compatible, but LightPet treats them as mouse-action slots. For a mouse-only desktop pet, design the visuals around direct manipulation instead of external app state.
+
 | State | Visual Intent |
 | --- | --- |
 | `idle` | Calm resting loop with subtle breathing, blink, or small posture shift. |
-| `running-right` | Eight-frame right-facing locomotion using body and limb motion only. |
-| `running-left` | Eight-frame left-facing locomotion; mirror only when identity and accessories stay correct. |
-| `waving` | Friendly wave expressed through limb pose; no wave marks or floating symbols. |
-| `jumping` | Body moves vertically through the cells; no floor shadow, dust, or impact marks. |
-| `failed` | Failed, dizzy, or sad reaction; attached small tears, stars, or smoke are acceptable if hard-edged and compact. |
+| `running-right` | Drag-right pose: the pet is pulled by the right hand, right sleeve, or right side of the body. |
+| `running-left` | Drag-left pose: the pet is pulled by the left hand, left sleeve, or left side of the body. |
+| `waving` | Long-press pose: the pet looks grabbed and may lightly struggle; no wave marks or floating symbols. |
+| `jumping` | Drag-up pose: the pet is lifted upward or stretched upward by the grab. |
+| `failed` | Click reaction: the pet staggers one step backward, then recovers. |
 | `waiting` | Attentive hover state, looking ready for interaction. |
-| `running` | Direction-neutral running-in-place loop. |
-| `review` | Focused thinking or inspection pose using face, head tilt, or paw position. |
+| `running` | Spare neutral drag or struggle loop; keep valid frames even though the current mouse logic does not trigger it directly. |
+| `review` | Drag-down pose: the pet lies low or prone, as if pressed down by the cursor. |
 
 ## Playback Logic
 
@@ -129,10 +131,11 @@ Mouse behavior:
 
 ```text
 hover visible sprite  waiting
-left press            waving
-left drag             move the panel; horizontal direction selects running-right or running-left
+click                 failed
+long press            waving
+drag left/right       move the panel and select running-left/running-right
+drag up/down          move the panel and select jumping/review
 mouse up              return to waiting or idle depending on pointer position
-double click          jumping
 right click           show size, pet, reset-position, and quit menu
 ```
 

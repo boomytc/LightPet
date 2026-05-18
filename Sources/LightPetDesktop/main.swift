@@ -243,9 +243,10 @@ Pet lookup:
 
 Mouse:
   hover visible sprite  waiting
-  left press            waving
-  left drag             move pet window and switch running-left/running-right
-  double click          jumping
+  click                 failed
+  long press            waving
+  drag left/right       running-left/running-right
+  drag up/down          jumping/review
   right click           size, pet, reset-position, and quit menu
 
 Sizes:
@@ -412,14 +413,18 @@ private struct RuntimeError: Error, CustomStringConvertible {
 
 @MainActor
 private final class PetStateController {
+    private let longPressDelay: TimeInterval = 0.220
     private(set) var pointerInsideVisibleSprite = false
     private(set) var isDragging = false
+    private(set) var isPressed = false
     private var transientTimer: Timer?
+    private var pressTimer: Timer?
+    private var didLongPress = false
     var onStateChange: ((String) -> Void)?
 
     func updatePointerPresence(insideVisibleSprite: Bool) {
         pointerInsideVisibleSprite = insideVisibleSprite
-        guard !isDragging, transientTimer == nil else {
+        guard !isPressed, !isDragging, transientTimer == nil else {
             return
         }
         emit(insideVisibleSprite ? "waiting" : "idle")
@@ -427,27 +432,53 @@ private final class PetStateController {
 
     func mouseDown() {
         stopTransient()
+        cancelPressTimer()
         isDragging = false
-        emit("waving")
+        isPressed = true
+        didLongPress = false
+        let timer = Timer(timeInterval: longPressDelay, repeats: false) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self, self.isPressed, !self.isDragging else {
+                    return
+                }
+                self.didLongPress = true
+                self.emit("waving")
+            }
+        }
+        pressTimer = timer
+        RunLoop.main.add(timer, forMode: .common)
     }
 
-    func mouseDragged(deltaX: CGFloat) {
+    func mouseDragged(deltaX: CGFloat, deltaY: CGFloat) {
         stopTransient()
+        cancelPressTimer()
         isDragging = true
-        emit(deltaX >= 0 ? "running-right" : "running-left")
+        emit(dragState(deltaX: deltaX, deltaY: deltaY))
     }
 
     func mouseUp() {
+        let shouldPlayClickReaction = isPressed && !isDragging && !didLongPress
+        cancelPressTimer()
+        isPressed = false
         isDragging = false
-        emit(pointerInsideVisibleSprite ? "waiting" : "idle")
+        didLongPress = false
+        if shouldPlayClickReaction {
+            playTransient("failed", duration: rowByState["failed"]?.totalDuration ?? 1.220)
+        } else {
+            emit(pointerInsideVisibleSprite ? "waiting" : "idle")
+        }
     }
 
-    func doubleClick() {
-        playTransient("jumping", duration: rowByState["jumping"]?.totalDuration ?? 0.840)
+    private func dragState(deltaX: CGFloat, deltaY: CGFloat) -> String {
+        if abs(deltaY) > abs(deltaX) {
+            return deltaY >= 0 ? "jumping" : "review"
+        }
+        return deltaX >= 0 ? "running-right" : "running-left"
     }
 
     private func playTransient(_ state: String, duration: TimeInterval) {
         stopTransient()
+        cancelPressTimer()
         emit(state)
         let timer = Timer(timeInterval: duration, repeats: false) { [weak self] _ in
             Task { @MainActor [weak self] in
@@ -468,6 +499,11 @@ private final class PetStateController {
     private func stopTransient() {
         transientTimer?.invalidate()
         transientTimer = nil
+    }
+
+    private func cancelPressTimer() {
+        pressTimer?.invalidate()
+        pressTimer = nil
     }
 
     private func emit(_ state: String) {
@@ -506,7 +542,6 @@ private final class PetAnimationView: NSView {
     private var timer: Timer?
     private var dragStartMouse = NSPoint.zero
     private var dragStartOrigin = NSPoint.zero
-    private var didStartDrag = false
     weak var menuDelegate: PetAnimationViewMenuDelegate?
 
     init(package: PetPackage, initialState: String) {
@@ -634,13 +669,8 @@ private final class PetAnimationView: NSView {
         guard containsVisiblePixel(localPoint: convert(event.locationInWindow, from: nil)) else {
             return
         }
-        if event.clickCount >= 2 {
-            stateController.doubleClick()
-            return
-        }
         dragStartMouse = NSEvent.mouseLocation
         dragStartOrigin = window?.frame.origin ?? .zero
-        didStartDrag = false
         stateController.mouseDown()
     }
 
@@ -655,8 +685,7 @@ private final class PetAnimationView: NSView {
         window.setFrameOrigin(clampedWindowOrigin(nextOrigin, size: window.frame.size))
 
         if abs(deltaX) > 2 || abs(deltaY) > 2 {
-            didStartDrag = true
-            stateController.mouseDragged(deltaX: deltaX)
+            stateController.mouseDragged(deltaX: deltaX, deltaY: deltaY)
         }
     }
 
@@ -664,7 +693,6 @@ private final class PetAnimationView: NSView {
         let inside = containsVisiblePixel(screenPoint: NSEvent.mouseLocation)
         stateController.updatePointerPresence(insideVisibleSprite: inside)
         stateController.mouseUp()
-        didStartDrag = false
     }
 
     override func rightMouseDown(with event: NSEvent) {
@@ -825,7 +853,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         startPointerRoutingTimer(panel: panel, petView: petView)
 
         print("LightPetDesktop loaded \(currentPackage.manifest.displayName) from \(currentPackage.manifestURL.path)")
-        print("Mouse-only states: hover=waiting, press=waving, drag=running-left/right, double-click=jumping.")
+        print("Mouse-only states: hover=waiting, click=failed, hold=waving, drag=left/right/up/down.")
 
         if options.runResizeSmokeTest {
             runResizeSmokeTest(view: petView)
