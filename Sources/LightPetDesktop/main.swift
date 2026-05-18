@@ -10,7 +10,7 @@ private let atlasRows = 9
 private let atlasWidth = cellWidth * atlasColumns
 private let atlasHeight = cellHeight * atlasRows
 private let visibleAlphaThreshold: UInt8 = 16
-private let availableScales: [CGFloat] = [1, 1.5, 2, 2.5, 3]
+private let availableScales: [CGFloat] = [0.5, 0.75, 1, 1.25, 1.5]
 
 private struct AnimationRow {
     let state: String
@@ -160,7 +160,7 @@ private struct LaunchOptions {
     var manifestPath: String?
     var petID = "conan"
     var initialState = "idle"
-    var scale: CGFloat = 2
+    var scale: CGFloat = 1
     var showDock = false
     var runResizeSmokeTest = false
 
@@ -189,7 +189,11 @@ private struct LaunchOptions {
                 guard let value = Double(arguments[index]), value > 0 else {
                     throw LaunchError.invalidValue("--scale", arguments[index])
                 }
-                options.scale = CGFloat(value)
+                let scale = CGFloat(value)
+                guard isAvailableScale(scale) else {
+                    throw LaunchError.invalidValue("--scale", arguments[index])
+                }
+                options.scale = scale
             case "--show-dock":
                 options.showDock = true
             case "--resize-smoke-test":
@@ -231,7 +235,7 @@ private enum LaunchError: Error, CustomStringConvertible {
 
 private let helpText = """
 Usage:
-  swift run LightPetDesktop [--pet path/to/pet.json] [--pet-id conan] [--state idle] [--scale 2] [--show-dock]
+  swift run LightPetDesktop [--pet path/to/pet.json] [--pet-id conan] [--state idle] [--scale 1] [--show-dock]
 
 Pet lookup:
   --pet exact manifest path wins.
@@ -243,6 +247,9 @@ Mouse:
   left drag             move pet window and switch running-left/running-right
   double click          jumping
   right click           size, pet, reset-position, and quit menu
+
+Sizes:
+  0.5x, 0.75x, 1x, 1.25x, 1.5x
 """
 
 private func loadPetPackage(options: LaunchOptions) throws -> PetPackage {
@@ -805,7 +812,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func runResizeSmokeTest(view: PetAnimationView) {
-        let scales: [CGFloat] = [1, 2, 1.5]
+        let scales = availableScales
         for (index, scale) in scales.enumerated() {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.25 * Double(index + 1)) { [weak self, weak view] in
                 guard let self, let view else {
@@ -918,7 +925,11 @@ private func formatScale(_ scale: CGFloat) -> String {
     if value.rounded() == value {
         return String(Int(value))
     }
-    return String(format: "%.1f", value)
+    return String(format: "%.2f", value).replacingOccurrences(of: #"0+$"#, with: "", options: .regularExpression)
+}
+
+private func isAvailableScale(_ scale: CGFloat) -> Bool {
+    availableScales.contains { abs($0 - scale) < 0.001 }
 }
 
 private func defaultWindowOrigin(size: NSSize) -> NSPoint {

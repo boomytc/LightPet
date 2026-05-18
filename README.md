@@ -19,7 +19,7 @@ http://127.0.0.1:18091/
 Native macOS desktop pet:
 
 ```bash
-swift run LightPetDesktop --scale 2
+swift run LightPetDesktop --scale 1
 ```
 
 Mouse controls:
@@ -47,7 +47,7 @@ Resize smoke test:
 swift run LightPetDesktop --show-dock --resize-smoke-test
 ```
 
-This opens the native panel, switches through `1x`, `2x`, and `1.5x`, verifies the actual window size, then exits.
+This opens the native panel, switches through `0.5x`, `0.75x`, `1x`, `1.25x`, and `1.5x`, verifies the actual window size, then exits.
 
 The default sample package is copied from:
 
