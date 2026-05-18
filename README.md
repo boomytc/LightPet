@@ -50,7 +50,7 @@ Pet lookup:
 
 Without `--pet`, the desktop wrapper tries `sample-pets/<pet-id>/pet.json`, then `${CODEX_HOME:-~/.codex}/pets/<pet-id>/pet.json`.
 
-The right-click `Pet` menu lists valid packages discovered under `sample-pets/*/pet.json` and `${CODEX_HOME:-~/.codex}/pets/*/pet.json`. It also includes `Choose Pet Folder...`, which lets you select any folder containing this exact pair:
+The right-click `Pet` menu lists valid packages discovered under `sample-pets/*/pet.json` and `${CODEX_HOME:-~/.codex}/pets/*/pet.json`. A package appears there only after its manifest, spritesheet size, used frames, and transparent unused cells pass validation. The menu also includes `Choose Pet Folder...`, which lets you select any folder containing this exact pair:
 
 ```text
 pet.json
@@ -58,6 +58,8 @@ spritesheet.webp
 ```
 
 To make a pet appear in the menu on every launch, place that folder under `sample-pets/<pet-id>/` or `${CODEX_HOME:-~/.codex}/pets/<pet-id>/`.
+
+`Choose Pet Folder...` only loads the selected folder for the current run. It does not copy, install, or modify pet files.
 
 Resize smoke test:
 

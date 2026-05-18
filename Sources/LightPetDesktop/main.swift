@@ -266,8 +266,7 @@ private func loadPetPackage(directoryURL: URL) throws -> PetPackage {
     guard FileManager.default.fileExists(atPath: spritesheetURL.path) else {
         throw RuntimeError("Selected folder must contain spritesheet.webp.")
     }
-    let data = try Data(contentsOf: manifestURL)
-    let manifest = try JSONDecoder().decode(PetManifest.self, from: data)
+    let manifest = try loadPetManifest(manifestURL: manifestURL)
     guard manifest.spritesheetPath == "spritesheet.webp" else {
         throw RuntimeError("pet.json must set spritesheetPath to spritesheet.webp.")
     }
@@ -275,8 +274,7 @@ private func loadPetPackage(directoryURL: URL) throws -> PetPackage {
 }
 
 private func loadPetPackage(manifestURL: URL) throws -> PetPackage {
-    let data = try Data(contentsOf: manifestURL)
-    let manifest = try JSONDecoder().decode(PetManifest.self, from: data)
+    let manifest = try loadPetManifest(manifestURL: manifestURL)
     let spritesheetURL = resolveSpritesheetURL(manifest: manifest, manifestURL: manifestURL)
 
     guard let image = NSImage(contentsOf: spritesheetURL) else {
@@ -296,6 +294,11 @@ private func loadPetPackage(manifestURL: URL) throws -> PetPackage {
         spritesheetURL: spritesheetURL,
         frames: try PetFrameStore(atlas: atlas)
     )
+}
+
+private func loadPetManifest(manifestURL: URL) throws -> PetManifest {
+    let data = try Data(contentsOf: manifestURL)
+    return try JSONDecoder().decode(PetManifest.self, from: data)
 }
 
 private func discoverPetChoices() -> [PetChoice] {
@@ -328,15 +331,13 @@ private func discoverPetChoices() -> [PetChoice] {
 
 private func petChoice(manifestURL: URL) -> PetChoice? {
     guard
-        let data = try? Data(contentsOf: manifestURL),
-        let manifest = try? JSONDecoder().decode(PetManifest.self, from: data),
+        let manifest = try? loadPetManifest(manifestURL: manifestURL),
         manifest.spritesheetPath == "spritesheet.webp"
     else {
         return nil
     }
 
-    let spritesheetURL = resolveSpritesheetURL(manifest: manifest, manifestURL: manifestURL)
-    guard FileManager.default.fileExists(atPath: spritesheetURL.path) else {
+    guard (try? loadPetPackage(manifestURL: manifestURL)) != nil else {
         return nil
     }
     return PetChoice(manifest: manifest, manifestURL: manifestURL)

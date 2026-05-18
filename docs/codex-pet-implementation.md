@@ -140,8 +140,9 @@ The right-click menu intentionally does not list animation states. States are se
 
 Additional desktop behavior:
 
-- Pet choices are discovered from `sample-pets/*/pet.json` and `${CODEX_HOME:-~/.codex}/pets/*/pet.json`.
+- Pet choices are discovered from `sample-pets/*/pet.json` and `${CODEX_HOME:-~/.codex}/pets/*/pet.json`, then fully loaded and validated before appearing in the menu.
 - The right-click `Pet` submenu includes `Choose Pet Folder...`; it loads a selected directory only when that directory contains `pet.json` and `spritesheet.webp`.
+- `Choose Pet Folder...` is a temporary runtime load. It does not copy, install, or modify pet files.
 - To make a pet appear in the menu on every launch, put its folder under `sample-pets/<pet-id>/` or `${CODEX_HOME:-~/.codex}/pets/<pet-id>/`.
 - Window size can be changed from the right-click menu.
 - Hit testing samples the current frame alpha map, so transparent sprite pixels do not start pet interaction.
