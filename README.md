@@ -147,11 +147,11 @@ Create a LightPet-compatible desktop pet package.
 Package metadata:
 - id: {id}
 - displayName: {displayName}
-- description: {description}
 - rendering: {rendering}
 
 Reference image:
 - Use the attached reference image as the visual source of truth.
+- Infer one short pet description from the reference image for pet.json.
 - Preserve the reference character's identity, proportions, silhouette, face, colors, clothing/accessories, material feel, and overall art style.
 - If the reference is a smooth 3D toy-like mascot, keep that soft rounded 3D look instead of converting it to pixel art.
 - Adapt the reference into consistent animation rows for mouse-only desktop pet interactions.
@@ -165,7 +165,7 @@ Output contract:
   {
     "id": "{id}",
     "displayName": "{displayName}",
-    "description": "{description}",
+    "description": "<one short sentence inferred from the reference image>",
     "spritesheetPath": "spritesheet.webp",
     "rendering": "{rendering}"
   }
