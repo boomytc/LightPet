@@ -134,4 +134,49 @@ sample-pets/<pet-id>/
 | 7 | `running`（备用拖拽） | 6 | 中性的被拖拽或挣扎循环；当前鼠标逻辑不主动触发，但仍需有效帧。 |
 | 8 | `review`（向下拖拽） | 6 | 向下拖拽时趴在地上，像被压住或被按住。 |
 
-在使用 `hatch-pet` 或其他生成器时，请要求生成一个紧凑的像素艺术吉祥物，在所有行中保持一致的识别度，透明背景，粗而清晰的轮廓，有限的调色板，并且没有文字、UI、对话气泡、阴影、松散的运动线或分离的装饰效果。效果应该只有小型的、硬边缘的、与鼠标动作相关的，并且附着在宠物轮廓上。
+可复制给 `hatch-pet` 或其他生成器的提示词模板：
+
+```text
+Create a LightPet-compatible desktop pet package.
+
+Package metadata:
+- id: {id}
+- displayName: {displayName}
+- description: {description}
+
+Output contract:
+- Create a folder named {id}.
+- The folder must contain exactly this runtime contract:
+  - pet.json
+  - spritesheet.webp
+- pet.json must contain:
+  {
+    "id": "{id}",
+    "displayName": "{displayName}",
+    "description": "{description}",
+    "spritesheetPath": "spritesheet.webp"
+  }
+
+spritesheet.webp requirements:
+- Format: transparent-capable WebP.
+- Exact size: 1536x1872 pixels.
+- Grid: 8 columns x 9 rows.
+- Cell size: 192x208 pixels.
+- Each used cell must contain visible pet pixels.
+- Unused cells after each row's frame count must be fully transparent.
+- Keep the same pet identity, silhouette, palette, outline style, and proportions across all rows.
+- Use compact pixel-art mascot styling: readable chibi proportions, thick clear outline, limited palette, flat cel shading, transparent background.
+- Do not include text, UI, speech bubbles, frame numbers, guide marks, shadows, detached motion lines, loose sparkles, or decorative effects separate from the pet body.
+- Any effect must be small, hard-edged, pixel-style, mouse-action relevant, and attached to the pet silhouette.
+
+Animation rows:
+0. idle, 6 frames: calm resting loop with subtle breathing or blinking.
+1. running-right, 8 frames: drag-right pose; the pet is pulled by the right hand, right sleeve, or right side of the body.
+2. running-left, 8 frames: drag-left pose; the pet is pulled by the left hand, left sleeve, or left side of the body.
+3. waving, 4 frames: long-press grabbed pose; the pet looks grabbed and may lightly struggle.
+4. jumping, 5 frames: drag-up pose; the pet is lifted upward or stretched upward by the grab.
+5. failed, 8 frames: click reaction; the pet staggers one step backward, then recovers.
+6. waiting, 6 frames: attentive hover state, looking ready for interaction.
+7. running, 6 frames: spare neutral drag or struggle loop; keep valid frames even if not triggered directly.
+8. review, 6 frames: drag-down pose; the pet lies low or prone, as if pressed down by the cursor.
+```
