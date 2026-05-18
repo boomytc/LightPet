@@ -76,9 +76,10 @@ The native desktop wrapper in `Sources/LightPetDesktop/main.swift` keeps the sam
 1. Decode `pet.json`.
 2. Decode `spritesheet.webp` with `NSImage`.
 3. Validate the decoded `CGImage` is exactly `1536x1872`.
-4. Open a transparent, borderless `NSPanel`.
-5. Crop the active `192x208` cell from the atlas and draw it into the panel.
-6. Advance frames with a `Timer` using the same duration table as the web preview.
+4. Pre-slice and validate all used frames, while checking unused cells are transparent.
+5. Open a transparent, borderless `NSPanel`.
+6. Draw the active cached `192x208` frame into the panel.
+7. Advance frames with a `Timer` using the same duration table as the web preview.
 
 Window settings:
 
@@ -92,13 +93,24 @@ spaces: can join all spaces, fullscreen auxiliary
 Mouse behavior:
 
 ```text
-left drag     move the panel; horizontal direction selects running-right or running-left
-mouse up      return to idle
-double click  cycle through animation states
-right click   show state menu and quit command
+hover visible sprite  waiting
+left press            waving
+left drag             move the panel; horizontal direction selects running-right or running-left
+mouse up              return to waiting or idle depending on pointer position
+double click          jumping
+right click           show size, pet, reset-position, and quit menu
 ```
 
-This is the practical minimum for a desktop pet. More advanced behavior should be added as explicit state triggers on top of the same `setState(...)` boundary, for example hover, idle timeout, app activity, or screen-edge collision.
+The right-click menu intentionally does not list animation states. States are selected by the desktop pet's mouse interaction model.
+
+Additional desktop behavior:
+
+- Pet choices are discovered from `sample-pets/*/pet.json` and `${CODEX_HOME:-~/.codex}/pets/*/pet.json`.
+- Window size can be changed from the right-click menu.
+- Hit testing samples the current frame alpha map, so transparent sprite pixels do not start pet interaction.
+- Dragging is clamped to the visible screen union to keep the pet reachable.
+
+This is the practical minimum for a desktop pet. More advanced behavior should be added as explicit mouse or desktop-environment triggers on top of the same state-controller boundary. Software integration events are intentionally out of scope for now.
 
 ## Asset Creation Pipeline
 

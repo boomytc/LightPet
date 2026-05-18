@@ -8,12 +8,18 @@ private let atlasColumns = 8
 private let atlasRows = 9
 private let atlasWidth = cellWidth * atlasColumns
 private let atlasHeight = cellHeight * atlasRows
+private let visibleAlphaThreshold: UInt8 = 16
+private let availableScales: [CGFloat] = [1, 1.5, 2, 2.5, 3]
 
 private struct AnimationRow {
     let state: String
     let row: Int
     let frameCount: Int
     let durations: [TimeInterval]
+
+    var totalDuration: TimeInterval {
+        durations.reduce(0, +)
+    }
 }
 
 private let animationRows: [AnimationRow] = [
@@ -37,15 +43,121 @@ private struct PetManifest: Decodable {
     let spritesheetPath: String
 }
 
+private struct PetFrame {
+    let image: CGImage
+    let alpha: [UInt8]
+
+    func hasVisiblePixel(x: Int, y: Int) -> Bool {
+        guard x >= 0, x < cellWidth, y >= 0, y < cellHeight else {
+            return false
+        }
+        return alpha[y * cellWidth + x] > visibleAlphaThreshold
+    }
+}
+
+private final class PetFrameStore {
+    private let framesByState: [String: [PetFrame]]
+
+    init(atlas: CGImage) throws {
+        var builtFrames: [String: [PetFrame]] = [:]
+
+        for row in animationRows {
+            var frames: [PetFrame] = []
+            for column in 0..<row.frameCount {
+                let frame = try Self.makeFrame(atlas: atlas, row: row.row, column: column)
+                let nontransparentPixels = frame.alpha.filter { $0 > visibleAlphaThreshold }.count
+                guard nontransparentPixels > 50 else {
+                    throw RuntimeError("\(row.state) column \(column) is empty or too sparse.")
+                }
+                frames.append(frame)
+            }
+
+            for column in row.frameCount..<atlasColumns {
+                let frame = try Self.makeFrame(atlas: atlas, row: row.row, column: column)
+                let nontransparentPixels = frame.alpha.filter { $0 > visibleAlphaThreshold }.count
+                guard nontransparentPixels == 0 else {
+                    throw RuntimeError("\(row.state) unused column \(column) is not transparent.")
+                }
+            }
+
+            builtFrames[row.state] = frames
+        }
+
+        framesByState = builtFrames
+    }
+
+    func frame(for row: AnimationRow, index: Int) -> PetFrame {
+        guard let frames = framesByState[row.state], !frames.isEmpty else {
+            fatalError("Missing frames for \(row.state).")
+        }
+        return frames[index % frames.count]
+    }
+
+    private static func makeFrame(atlas: CGImage, row: Int, column: Int) throws -> PetFrame {
+        let sourceRect = CGRect(
+            x: column * cellWidth,
+            y: row * cellHeight,
+            width: cellWidth,
+            height: cellHeight
+        )
+        guard let image = atlas.cropping(to: sourceRect) else {
+            throw RuntimeError("Could not crop row \(row), column \(column).")
+        }
+        return PetFrame(image: image, alpha: try alphaMap(for: image))
+    }
+
+    private static func alphaMap(for image: CGImage) throws -> [UInt8] {
+        let bytesPerPixel = 4
+        let bytesPerRow = cellWidth * bytesPerPixel
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        var pixels = [UInt8](repeating: 0, count: cellWidth * cellHeight * bytesPerPixel)
+
+        try pixels.withUnsafeMutableBytes { rawBuffer in
+            guard let baseAddress = rawBuffer.baseAddress else {
+                throw RuntimeError("Could not allocate frame alpha buffer.")
+            }
+            guard let context = CGContext(
+                data: baseAddress,
+                width: cellWidth,
+                height: cellHeight,
+                bitsPerComponent: 8,
+                bytesPerRow: bytesPerRow,
+                space: colorSpace,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue
+            ) else {
+                throw RuntimeError("Could not create frame alpha context.")
+            }
+            context.clear(CGRect(x: 0, y: 0, width: cellWidth, height: cellHeight))
+            context.draw(image, in: CGRect(x: 0, y: 0, width: cellWidth, height: cellHeight))
+        }
+
+        var alpha = [UInt8](repeating: 0, count: cellWidth * cellHeight)
+        for index in 0..<alpha.count {
+            alpha[index] = pixels[index * bytesPerPixel + 3]
+        }
+        return alpha
+    }
+}
+
 private struct PetPackage {
     let manifest: PetManifest
     let manifestURL: URL
     let spritesheetURL: URL
-    let atlas: CGImage
+    let frames: PetFrameStore
+}
+
+private struct PetChoice {
+    let manifest: PetManifest
+    let manifestURL: URL
+
+    var title: String {
+        manifest.displayName.isEmpty ? manifest.id : manifest.displayName
+    }
 }
 
 private struct LaunchOptions {
-    var manifestPath = "sample-pets/conan/pet.json"
+    var manifestPath: String?
+    var petID = "conan"
     var initialState = "idle"
     var scale: CGFloat = 2
     var showDock = false
@@ -61,6 +173,10 @@ private struct LaunchOptions {
                 index += 1
                 guard index < arguments.count else { throw LaunchError.missingValue("--pet") }
                 options.manifestPath = arguments[index]
+            case "--pet-id":
+                index += 1
+                guard index < arguments.count else { throw LaunchError.missingValue("--pet-id") }
+                options.petID = arguments[index]
             case "--state":
                 index += 1
                 guard index < arguments.count else { throw LaunchError.missingValue("--state") }
@@ -111,25 +227,29 @@ private enum LaunchError: Error, CustomStringConvertible {
 
 private let helpText = """
 Usage:
-  swift run LightPetDesktop [--pet path/to/pet.json] [--state idle] [--scale 2] [--show-dock]
+  swift run LightPetDesktop [--pet path/to/pet.json] [--pet-id conan] [--state idle] [--scale 2] [--show-dock]
+
+Pet lookup:
+  --pet exact manifest path wins.
+  Without --pet, LightPet tries sample-pets/<pet-id>/pet.json, then ${CODEX_HOME:-~/.codex}/pets/<pet-id>/pet.json.
 
 Mouse:
-  left drag     move pet window, switching running-left/running-right while dragging
-  double click  cycle animation state
-  right click   open state and quit menu
+  hover visible sprite  waiting
+  left press            waving
+  left drag             move pet window and switch running-left/running-right
+  double click          jumping
+  right click           size, pet, reset-position, and quit menu
 """
 
-private func loadPetPackage(from manifestPath: String) throws -> PetPackage {
-    let manifestURL = URL(fileURLWithPath: manifestPath, relativeTo: URL(fileURLWithPath: FileManager.default.currentDirectoryPath))
-        .standardizedFileURL
+private func loadPetPackage(options: LaunchOptions) throws -> PetPackage {
+    let manifestURL = try resolveManifestURL(options: options)
+    return try loadPetPackage(manifestURL: manifestURL)
+}
+
+private func loadPetPackage(manifestURL: URL) throws -> PetPackage {
     let data = try Data(contentsOf: manifestURL)
     let manifest = try JSONDecoder().decode(PetManifest.self, from: data)
-    let spritesheetURL: URL
-    if manifest.spritesheetPath.hasPrefix("/") {
-        spritesheetURL = URL(fileURLWithPath: manifest.spritesheetPath).standardizedFileURL
-    } else {
-        spritesheetURL = manifestURL.deletingLastPathComponent().appendingPathComponent(manifest.spritesheetPath).standardizedFileURL
-    }
+    let spritesheetURL = resolveSpritesheetURL(manifest: manifest, manifestURL: manifestURL)
 
     guard let image = NSImage(contentsOf: spritesheetURL) else {
         throw RuntimeError("Could not load spritesheet at \(spritesheetURL.path).")
@@ -141,7 +261,103 @@ private func loadPetPackage(from manifestPath: String) throws -> PetPackage {
     guard atlas.width == atlasWidth, atlas.height == atlasHeight else {
         throw RuntimeError("Expected \(atlasWidth)x\(atlasHeight) spritesheet, got \(atlas.width)x\(atlas.height).")
     }
-    return PetPackage(manifest: manifest, manifestURL: manifestURL, spritesheetURL: spritesheetURL, atlas: atlas)
+
+    return PetPackage(
+        manifest: manifest,
+        manifestURL: manifestURL,
+        spritesheetURL: spritesheetURL,
+        frames: try PetFrameStore(atlas: atlas)
+    )
+}
+
+private func discoverPetChoices() -> [PetChoice] {
+    let cwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+    let codexHome = ProcessInfo.processInfo.environment["CODEX_HOME"] ?? "~/.codex"
+    let roots = [
+        Bundle.main.resourceURL?.appendingPathComponent("Pets"),
+        cwd.appendingPathComponent("sample-pets").standardizedFileURL,
+        fileURL(from: "\(codexHome)/pets"),
+    ].compactMap { $0 }
+
+    var seenPaths = Set<String>()
+    var choices: [PetChoice] = []
+
+    for manifestURL in roots.flatMap(petManifestURLs) {
+        guard !seenPaths.contains(manifestURL.path) else {
+            continue
+        }
+        seenPaths.insert(manifestURL.path)
+        guard
+            let data = try? Data(contentsOf: manifestURL),
+            let manifest = try? JSONDecoder().decode(PetManifest.self, from: data)
+        else {
+            continue
+        }
+        choices.append(PetChoice(manifest: manifest, manifestURL: manifestURL))
+    }
+
+    return choices.sorted {
+        $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
+    }
+}
+
+private func petManifestURLs(in root: URL) -> [URL] {
+    guard
+        let entries = try? FileManager.default.contentsOfDirectory(
+            at: root,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        )
+    else {
+        return []
+    }
+
+    return entries.compactMap { entry in
+        let manifestURL = entry.appendingPathComponent("pet.json").standardizedFileURL
+        return FileManager.default.fileExists(atPath: manifestURL.path) ? manifestURL : nil
+    }
+}
+
+private func resolveManifestURL(options: LaunchOptions) throws -> URL {
+    if let manifestPath = options.manifestPath {
+        let manifestURL = fileURL(from: manifestPath)
+        guard FileManager.default.fileExists(atPath: manifestURL.path) else {
+            throw RuntimeError("Pet manifest does not exist at \(manifestURL.path).")
+        }
+        return manifestURL
+    }
+
+    let cwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+    let codexHome = ProcessInfo.processInfo.environment["CODEX_HOME"] ?? "~/.codex"
+    let candidates = [
+        Bundle.main.url(forResource: "pet", withExtension: "json", subdirectory: "Pets/\(options.petID)"),
+        cwd.appendingPathComponent("sample-pets/\(options.petID)/pet.json").standardizedFileURL,
+        fileURL(from: "\(codexHome)/pets/\(options.petID)/pet.json"),
+    ].compactMap { $0 }
+
+    for candidate in candidates where FileManager.default.fileExists(atPath: candidate.path) {
+        return candidate
+    }
+
+    throw RuntimeError("Could not find pet '\(options.petID)'. Pass --pet path/to/pet.json.")
+}
+
+private func resolveSpritesheetURL(manifest: PetManifest, manifestURL: URL) -> URL {
+    if manifest.spritesheetPath.hasPrefix("/") {
+        return URL(fileURLWithPath: manifest.spritesheetPath).standardizedFileURL
+    }
+    return manifestURL.deletingLastPathComponent().appendingPathComponent(manifest.spritesheetPath).standardizedFileURL
+}
+
+private func fileURL(from path: String) -> URL {
+    let expanded = (path as NSString).expandingTildeInPath
+    if expanded.hasPrefix("/") {
+        return URL(fileURLWithPath: expanded).standardizedFileURL
+    }
+    return URL(
+        fileURLWithPath: expanded,
+        relativeTo: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+    ).standardizedFileURL
 }
 
 private struct RuntimeError: Error, CustomStringConvertible {
@@ -152,19 +368,97 @@ private struct RuntimeError: Error, CustomStringConvertible {
     }
 }
 
+@MainActor
+private final class PetStateController {
+    private(set) var pointerInsideVisibleSprite = false
+    private(set) var isDragging = false
+    private var transientTimer: Timer?
+    var onStateChange: ((String) -> Void)?
+
+    func updatePointerPresence(insideVisibleSprite: Bool) {
+        pointerInsideVisibleSprite = insideVisibleSprite
+        guard !isDragging, transientTimer == nil else {
+            return
+        }
+        emit(insideVisibleSprite ? "waiting" : "idle")
+    }
+
+    func mouseDown() {
+        stopTransient()
+        isDragging = false
+        emit("waving")
+    }
+
+    func mouseDragged(deltaX: CGFloat) {
+        stopTransient()
+        isDragging = true
+        emit(deltaX >= 0 ? "running-right" : "running-left")
+    }
+
+    func mouseUp() {
+        isDragging = false
+        emit(pointerInsideVisibleSprite ? "waiting" : "idle")
+    }
+
+    func doubleClick() {
+        playTransient("jumping", duration: rowByState["jumping"]?.totalDuration ?? 0.840)
+    }
+
+    private func playTransient(_ state: String, duration: TimeInterval) {
+        stopTransient()
+        emit(state)
+        let timer = Timer(timeInterval: duration, repeats: false) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self else {
+                    return
+                }
+                transientTimer = nil
+                guard !isDragging else {
+                    return
+                }
+                emit(pointerInsideVisibleSprite ? "waiting" : "idle")
+            }
+        }
+        transientTimer = timer
+        RunLoop.main.add(timer, forMode: .common)
+    }
+
+    private func stopTransient() {
+        transientTimer?.invalidate()
+        transientTimer = nil
+    }
+
+    private func emit(_ state: String) {
+        onStateChange?(state)
+    }
+}
+
 private final class PetPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { true }
 }
 
+@MainActor
+private protocol PetAnimationViewMenuDelegate: AnyObject {
+    func availablePetChoices(for view: PetAnimationView) -> [PetChoice]
+    func currentPetManifestURL(for view: PetAnimationView) -> URL
+    func currentScale(for view: PetAnimationView) -> CGFloat
+    func petViewResetPosition(_ view: PetAnimationView)
+    func petView(_ view: PetAnimationView, setScale scale: CGFloat)
+    func petView(_ view: PetAnimationView, selectPetAt manifestURL: URL)
+    func petViewQuit(_ view: PetAnimationView)
+}
+
 private final class PetAnimationView: NSView {
-    private let package: PetPackage
+    private var package: PetPackage
+    private let stateController = PetStateController()
     private var activeRow: AnimationRow
     private var frameIndex = 0
     private var timer: Timer?
     private var dragStartMouse = NSPoint.zero
     private var dragStartOrigin = NSPoint.zero
-    private var lastDragState: String?
+    private var didStartDrag = false
+    weak var menuDelegate: PetAnimationViewMenuDelegate?
 
     init(package: PetPackage, initialState: String) {
         self.package = package
@@ -172,6 +466,9 @@ private final class PetAnimationView: NSView {
         super.init(frame: .zero)
         wantsLayer = true
         layer?.backgroundColor = NSColor.clear.cgColor
+        stateController.onStateChange = { [weak self] state in
+            self?.setState(state)
+        }
         startTimer()
     }
 
@@ -182,25 +479,33 @@ private final class PetAnimationView: NSView {
 
     override var isFlipped: Bool { true }
 
+    var isDragging: Bool {
+        stateController.isDragging
+    }
+
+    func updatePackage(_ package: PetPackage) {
+        self.package = package
+        activeRow = rowByState["idle"] ?? animationRows[0]
+        frameIndex = 0
+        window?.title = package.manifest.displayName
+        needsDisplay = true
+        startTimer()
+        stateController.updatePointerPresence(insideVisibleSprite: containsVisiblePixel(screenPoint: NSEvent.mouseLocation))
+    }
+
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
         true
+    }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        containsVisiblePixel(localPoint: point) ? super.hitTest(point) : nil
     }
 
     override func draw(_ dirtyRect: NSRect) {
         NSColor.clear.setFill()
         dirtyRect.fill()
 
-        let sourceRect = CGRect(
-            x: frameIndex * cellWidth,
-            y: activeRow.row * cellHeight,
-            width: cellWidth,
-            height: cellHeight
-        )
-
-        guard let frame = package.atlas.cropping(to: sourceRect) else {
-            return
-        }
-
+        let frame = currentFrame()
         guard let context = NSGraphicsContext.current?.cgContext else {
             return
         }
@@ -209,11 +514,39 @@ private final class PetAnimationView: NSView {
         context.saveGState()
         context.translateBy(x: 0, y: bounds.height)
         context.scaleBy(x: 1, y: -1)
-        context.draw(frame, in: CGRect(origin: .zero, size: bounds.size))
+        context.draw(frame.image, in: CGRect(origin: .zero, size: bounds.size))
         context.restoreGState()
     }
 
-    func setState(_ state: String, resetFrame: Bool = true) {
+    func updatePointerPresence(insideVisibleSprite: Bool) {
+        stateController.updatePointerPresence(insideVisibleSprite: insideVisibleSprite)
+    }
+
+    func containsVisiblePixel(screenPoint: NSPoint) -> Bool {
+        guard let window else {
+            return false
+        }
+        let windowPoint = window.convertPoint(fromScreen: screenPoint)
+        let localPoint = convert(windowPoint, from: nil)
+        return containsVisiblePixel(localPoint: localPoint)
+    }
+
+    private func containsVisiblePixel(localPoint: NSPoint) -> Bool {
+        guard bounds.contains(localPoint), bounds.width > 0, bounds.height > 0 else {
+            return false
+        }
+
+        let frame = currentFrame()
+        let spriteX = Int((localPoint.x / bounds.width) * CGFloat(cellWidth))
+        let spriteY = Int((localPoint.y / bounds.height) * CGFloat(cellHeight))
+        return frame.hasVisiblePixel(x: spriteX, y: spriteY)
+    }
+
+    private func currentFrame() -> PetFrame {
+        package.frames.frame(for: activeRow, index: frameIndex)
+    }
+
+    private func setState(_ state: String, resetFrame: Bool = true) {
         guard let row = rowByState[state] else {
             return
         }
@@ -249,14 +582,17 @@ private final class PetAnimationView: NSView {
     }
 
     override func mouseDown(with event: NSEvent) {
+        guard containsVisiblePixel(localPoint: convert(event.locationInWindow, from: nil)) else {
+            return
+        }
         if event.clickCount >= 2 {
-            cycleState()
+            stateController.doubleClick()
             return
         }
         dragStartMouse = NSEvent.mouseLocation
         dragStartOrigin = window?.frame.origin ?? .zero
-        lastDragState = nil
-        setState("waving")
+        didStartDrag = false
+        stateController.mouseDown()
     }
 
     override func mouseDragged(with event: NSEvent) {
@@ -266,81 +602,124 @@ private final class PetAnimationView: NSView {
         let currentMouse = NSEvent.mouseLocation
         let deltaX = currentMouse.x - dragStartMouse.x
         let deltaY = currentMouse.y - dragStartMouse.y
-        window.setFrameOrigin(NSPoint(x: dragStartOrigin.x + deltaX, y: dragStartOrigin.y + deltaY))
+        let nextOrigin = NSPoint(x: dragStartOrigin.x + deltaX, y: dragStartOrigin.y + deltaY)
+        window.setFrameOrigin(clampedWindowOrigin(nextOrigin, size: window.frame.size))
 
-        let state = deltaX >= 0 ? "running-right" : "running-left"
-        if state != lastDragState {
-            setState(state)
-            lastDragState = state
+        if abs(deltaX) > 2 || abs(deltaY) > 2 {
+            didStartDrag = true
+            stateController.mouseDragged(deltaX: deltaX)
         }
     }
 
     override func mouseUp(with event: NSEvent) {
-        setState("idle")
+        let inside = containsVisiblePixel(screenPoint: NSEvent.mouseLocation)
+        stateController.updatePointerPresence(insideVisibleSprite: inside)
+        stateController.mouseUp()
+        didStartDrag = false
     }
 
     override func rightMouseDown(with event: NSEvent) {
-        let menu = NSMenu()
-        for row in animationRows {
-            let item = NSMenuItem(title: row.state, action: #selector(selectState(_:)), keyEquivalent: "")
-            item.target = self
-            item.representedObject = row.state
-            item.state = row.state == activeRow.state ? .on : .off
-            menu.addItem(item)
+        guard containsVisiblePixel(localPoint: convert(event.locationInWindow, from: nil)) else {
+            return
         }
+        let menu = NSMenu()
+
+        let sizeItem = NSMenuItem(title: "Size", action: nil, keyEquivalent: "")
+        let sizeMenu = NSMenu()
+        let currentScale = menuDelegate?.currentScale(for: self) ?? 2
+        for scale in availableScales {
+            let item = NSMenuItem(title: "\(formatScale(scale))x", action: #selector(selectScale(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = NSNumber(value: Double(scale))
+            item.state = abs(scale - currentScale) < 0.001 ? .on : .off
+            sizeMenu.addItem(item)
+        }
+        menu.addItem(sizeItem)
+        menu.setSubmenu(sizeMenu, for: sizeItem)
+
+        let petItem = NSMenuItem(title: "Pet", action: nil, keyEquivalent: "")
+        let petMenu = NSMenu()
+        let currentPetURL = menuDelegate?.currentPetManifestURL(for: self)
+        for choice in menuDelegate?.availablePetChoices(for: self) ?? [] {
+            let item = NSMenuItem(title: choice.title, action: #selector(selectPet(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = choice.manifestURL as NSURL
+            item.state = choice.manifestURL == currentPetURL ? .on : .off
+            petMenu.addItem(item)
+        }
+        if petMenu.items.isEmpty {
+            let empty = NSMenuItem(title: "No Pets Found", action: nil, keyEquivalent: "")
+            empty.isEnabled = false
+            petMenu.addItem(empty)
+        }
+        menu.addItem(petItem)
+        menu.setSubmenu(petMenu, for: petItem)
+
         menu.addItem(.separator())
+
+        let reset = NSMenuItem(title: "Reset Position", action: #selector(resetPosition), keyEquivalent: "")
+        reset.target = self
+        menu.addItem(reset)
+
+        menu.addItem(.separator())
+
         let quit = NSMenuItem(title: "Quit LightPet", action: #selector(quit), keyEquivalent: "q")
         quit.target = self
         menu.addItem(quit)
+
         NSMenu.popUpContextMenu(menu, with: event, for: self)
     }
 
-    @objc private func selectState(_ sender: NSMenuItem) {
-        guard let state = sender.representedObject as? String else {
+    @objc private func selectScale(_ sender: NSMenuItem) {
+        guard let number = sender.representedObject as? NSNumber else {
             return
         }
-        setState(state)
+        menuDelegate?.petView(self, setScale: CGFloat(number.doubleValue))
+    }
+
+    @objc private func selectPet(_ sender: NSMenuItem) {
+        if let url = sender.representedObject as? URL {
+            menuDelegate?.petView(self, selectPetAt: url)
+        } else if let url = sender.representedObject as? NSURL {
+            menuDelegate?.petView(self, selectPetAt: url as URL)
+        }
+    }
+
+    @objc private func resetPosition() {
+        menuDelegate?.petViewResetPosition(self)
     }
 
     @objc private func quit() {
-        NSApp.terminate(nil)
-    }
-
-    private func cycleState() {
-        guard let currentIndex = animationRows.firstIndex(where: { $0.state == activeRow.state }) else {
-            setState(animationRows[0].state)
-            return
-        }
-        let nextIndex = animationRows.index(after: currentIndex) % animationRows.count
-        setState(animationRows[nextIndex].state)
+        menuDelegate?.petViewQuit(self)
     }
 }
 
 private final class AppDelegate: NSObject, NSApplicationDelegate {
     private let options: LaunchOptions
-    private let package: PetPackage
+    private var currentPackage: PetPackage
+    private var currentScale: CGFloat
     private var panel: PetPanel?
+    private weak var petView: PetAnimationView?
+    private var pointerTimer: Timer?
 
     init(options: LaunchOptions, package: PetPackage) {
         self.options = options
-        self.package = package
+        self.currentPackage = package
+        self.currentScale = options.scale
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        let size = NSSize(width: CGFloat(cellWidth) * options.scale, height: CGFloat(cellHeight) * options.scale)
-        let screenFrame = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
-        let origin = NSPoint(
-            x: screenFrame.maxX - size.width - 80,
-            y: screenFrame.minY + 80
-        )
+        let size = NSSize(width: CGFloat(cellWidth) * currentScale, height: CGFloat(cellHeight) * currentScale)
         let panel = PetPanel(
-            contentRect: NSRect(origin: origin, size: size),
+            contentRect: NSRect(origin: defaultWindowOrigin(size: size), size: size),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
-        panel.title = package.manifest.displayName
-        panel.contentView = PetAnimationView(package: package, initialState: options.initialState)
+        let petView = PetAnimationView(package: currentPackage, initialState: options.initialState)
+        petView.menuDelegate = self
+        panel.title = currentPackage.manifest.displayName
+        panel.contentView = petView
         panel.backgroundColor = .clear
         panel.isOpaque = false
         panel.hasShadow = false
@@ -350,19 +729,144 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.isReleasedWhenClosed = false
         panel.orderFrontRegardless()
         self.panel = panel
+        self.petView = petView
 
-        print("LightPetDesktop loaded \(package.manifest.displayName) from \(package.manifestURL.path)")
-        print("Left-drag to move, right-click for states, double-click to cycle states.")
+        startPointerRoutingTimer(panel: panel, petView: petView)
+
+        print("LightPetDesktop loaded \(currentPackage.manifest.displayName) from \(currentPackage.manifestURL.path)")
+        print("Mouse-only states: hover=waiting, press=waving, drag=running-left/right, double-click=jumping.")
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        pointerTimer?.invalidate()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         true
     }
+
+    private func startPointerRoutingTimer(panel: PetPanel, petView: PetAnimationView) {
+        let timer = Timer(timeInterval: 0.050, repeats: true) { [weak panel, weak petView] _ in
+            Task { @MainActor [weak panel, weak petView] in
+                guard let panel, let petView else {
+                    return
+                }
+                let insideVisibleSprite = petView.containsVisiblePixel(screenPoint: NSEvent.mouseLocation)
+                if !petView.isDragging {
+                    panel.ignoresMouseEvents = !insideVisibleSprite
+                }
+                petView.updatePointerPresence(insideVisibleSprite: insideVisibleSprite)
+            }
+        }
+        pointerTimer = timer
+        RunLoop.main.add(timer, forMode: .common)
+    }
+}
+
+extension AppDelegate: PetAnimationViewMenuDelegate {
+    func availablePetChoices(for view: PetAnimationView) -> [PetChoice] {
+        var choices = discoverPetChoices()
+        if !choices.contains(where: { $0.manifestURL == currentPackage.manifestURL }) {
+            choices.append(PetChoice(manifest: currentPackage.manifest, manifestURL: currentPackage.manifestURL))
+        }
+        return choices.sorted {
+            $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
+        }
+    }
+
+    func currentPetManifestURL(for view: PetAnimationView) -> URL {
+        currentPackage.manifestURL
+    }
+
+    func currentScale(for view: PetAnimationView) -> CGFloat {
+        currentScale
+    }
+
+    func petViewResetPosition(_ view: PetAnimationView) {
+        guard let panel else {
+            return
+        }
+        panel.setFrameOrigin(defaultWindowOrigin(size: panel.frame.size))
+    }
+
+    func petView(_ view: PetAnimationView, setScale scale: CGFloat) {
+        guard let panel else {
+            return
+        }
+        currentScale = scale
+        let oldFrame = panel.frame
+        let oldCenter = NSPoint(x: oldFrame.midX, y: oldFrame.midY)
+        let newSize = NSSize(width: CGFloat(cellWidth) * scale, height: CGFloat(cellHeight) * scale)
+        let proposedOrigin = NSPoint(x: oldCenter.x - newSize.width / 2, y: oldCenter.y - newSize.height / 2)
+        panel.setFrame(NSRect(origin: clampedWindowOrigin(proposedOrigin, size: newSize), size: newSize), display: true)
+    }
+
+    func petView(_ view: PetAnimationView, selectPetAt manifestURL: URL) {
+        do {
+            let package = try loadPetPackage(manifestURL: manifestURL)
+            currentPackage = package
+            panel?.title = package.manifest.displayName
+            view.updatePackage(package)
+            print("LightPetDesktop switched to \(package.manifest.displayName) from \(package.manifestURL.path)")
+        } catch {
+            showSwitchPetError(error)
+        }
+    }
+
+    func petViewQuit(_ view: PetAnimationView) {
+        NSApp.terminate(nil)
+    }
+
+    @MainActor
+    private func showSwitchPetError(_ error: Error) {
+        let alert = NSAlert()
+        alert.messageText = "Could Not Load Pet"
+        alert.informativeText = "\(error)"
+        alert.alertStyle = .warning
+        alert.runModal()
+    }
+}
+
+private func formatScale(_ scale: CGFloat) -> String {
+    let value = Double(scale)
+    if value.rounded() == value {
+        return String(Int(value))
+    }
+    return String(format: "%.1f", value)
+}
+
+private func defaultWindowOrigin(size: NSSize) -> NSPoint {
+    let screenFrame = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+    return clampedWindowOrigin(
+        NSPoint(x: screenFrame.maxX - size.width - 80, y: screenFrame.minY + 80),
+        size: size
+    )
+}
+
+private func clampedWindowOrigin(_ origin: NSPoint, size: NSSize) -> NSPoint {
+    let visibleFrame = visibleScreenUnion()
+    let maxX = max(visibleFrame.minX, visibleFrame.maxX - size.width)
+    let maxY = max(visibleFrame.minY, visibleFrame.maxY - size.height)
+    return NSPoint(
+        x: min(max(origin.x, visibleFrame.minX), maxX),
+        y: min(max(origin.y, visibleFrame.minY), maxY)
+    )
+}
+
+private func visibleScreenUnion() -> NSRect {
+    let screens = NSScreen.screens
+    guard var union = screens.first?.visibleFrame else {
+        return NSRect(x: 0, y: 0, width: 1440, height: 900)
+    }
+    for screen in screens.dropFirst() {
+        union = union.union(screen.visibleFrame)
+    }
+    return union
 }
 
 do {
     let options = try LaunchOptions.parse(arguments: CommandLine.arguments)
-    let package = try loadPetPackage(from: options.manifestPath)
+    let package = try loadPetPackage(options: options)
     let app = NSApplication.shared
     let delegate = AppDelegate(options: options, package: package)
     app.delegate = delegate
