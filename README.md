@@ -4,6 +4,8 @@ Minimal local reproduction of the Codex custom pet runtime contract.
 
 ## Run
 
+Web preview:
+
 ```bash
 python3 -m http.server 18091
 ```
@@ -12,6 +14,20 @@ Open:
 
 ```text
 http://127.0.0.1:18091/
+```
+
+Native macOS desktop pet:
+
+```bash
+swift run LightPetDesktop --pet sample-pets/conan/pet.json --scale 2
+```
+
+Mouse controls:
+
+```text
+left drag     move pet window; dragging switches running-left/running-right
+double click  cycle animation state
+right click   open state menu and quit
 ```
 
 The default sample package is copied from:
@@ -29,6 +45,8 @@ The default sample package is copied from:
 - Plays the same named states used by custom Codex pets.
 
 This repo does not reproduce the Codex desktop overlay window, drag behavior, or app-state triggers. It reproduces the portable asset format and animation playback surface.
+
+`LightPetDesktop` adds a local native macOS wrapper for the same files. It uses a transparent, borderless, floating AppKit panel and renders the same fixed atlas directly with Core Graphics.
 
 ## File Contract
 

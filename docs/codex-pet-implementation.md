@@ -69,6 +69,37 @@ background-position-y: -rowIndex * 208px
 
 When scaled, multiply every atlas and cell dimension by the same scale factor.
 
+## Desktop Wrapper Logic
+
+The native desktop wrapper in `Sources/LightPetDesktop/main.swift` keeps the same pet package contract. It changes only the host surface:
+
+1. Decode `pet.json`.
+2. Decode `spritesheet.webp` with `NSImage`.
+3. Validate the decoded `CGImage` is exactly `1536x1872`.
+4. Open a transparent, borderless `NSPanel`.
+5. Crop the active `192x208` cell from the atlas and draw it into the panel.
+6. Advance frames with a `Timer` using the same duration table as the web preview.
+
+Window settings:
+
+```text
+style: borderless, non-activating panel
+background: transparent
+level: floating
+spaces: can join all spaces, fullscreen auxiliary
+```
+
+Mouse behavior:
+
+```text
+left drag     move the panel; horizontal direction selects running-right or running-left
+mouse up      return to idle
+double click  cycle through animation states
+right click   show state menu and quit command
+```
+
+This is the practical minimum for a desktop pet. More advanced behavior should be added as explicit state triggers on top of the same `setState(...)` boundary, for example hover, idle timeout, app activity, or screen-edge collision.
+
 ## Asset Creation Pipeline
 
 The `hatch-pet` skill handles asset creation around the same contract:
@@ -91,6 +122,8 @@ This workspace implements a local runtime in:
 index.html
 styles.css
 app.js
+Package.swift
+Sources/LightPetDesktop/main.swift
 ```
 
 The default pet package lives at:
