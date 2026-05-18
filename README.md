@@ -1,91 +1,91 @@
 # LightPet
 
-LightPet is a local runtime for Codex-compatible desktop pet packages. Its boundary is intentionally narrow: it parses existing pet files, validates the fixed spritesheet contract, and presents the pet as a native macOS desktop overlay.
+LightPet 是一个兼容 Codex 的桌面宠物包的本地运行时。它的边界被刻意收窄：解析已有的宠物文件，验证固定的精灵表（spritesheet）契约，并将宠物呈现为原生的 macOS 桌面悬浮层。
 
-Out of scope:
+超出范围：
 
-- Generating, repairing, or editing pet artwork.
-- Prompt orchestration for new pets.
-- Packaging generated assets into Codex pet folders.
-- Dynamic integrations with other apps or software state.
+- 生成、修复或编辑宠物美术资源。
+- 新宠物的提示词编排。
+- 将生成的资源打包为 Codex 宠物文件夹。
+- 与其他应用或软件状态的动态集成。
 
-Use the `hatch-pet` skill or another asset pipeline to create the pet files, then point LightPet at the resulting folder.
+使用 `hatch-pet` 技能或其他资源管线来创建宠物文件，然后将 LightPet 指向生成的文件夹。
 
-## Run
+## 运行
 
-Web preview:
+Web 预览：
 
 ```bash
 python3 -m http.server 18091
 ```
 
-Open:
+打开：
 
 ```text
 http://127.0.0.1:18091/
 ```
 
-Native macOS desktop pet:
+原生 macOS 桌面宠物：
 
 ```bash
 swift run LightPetDesktop --scale 1
 ```
 
-Mouse controls:
+鼠标控制：
 
 ```text
-hover visible sprite  waiting
-left press            waving
-left drag             move pet window; dragging switches running-left/running-right
-double click          jumping
-right click           size, pet folder, reset-position, and quit menu
+悬停在可见精灵上  waiting（等待）
+左键按下            waving（挥手）
+左键拖动            移动宠物窗口；拖动时切换 running-left/running-right（向左/向右奔跑）
+双击                jumping（跳跃）
+右键点击            尺寸、宠物文件夹、重置位置和退出菜单
 ```
 
-Pet lookup:
+宠物查找：
 
 ```text
---pet path/to/pet.json  exact pet manifest path
---pet-id conan          default lookup key when --pet is not provided
+--pet path/to/pet.json  精确的宠物清单路径
+--pet-id conan          未提供 --pet 时的默认查找键
 ```
 
-Without `--pet`, the desktop wrapper tries `sample-pets/<pet-id>/pet.json`, then `${CODEX_HOME:-~/.codex}/pets/<pet-id>/pet.json`.
+未提供 `--pet` 时，桌面包装器会依次尝试 `sample-pets/<pet-id>/pet.json`，然后是 `${CODEX_HOME:-~/.codex}/pets/<pet-id>/pet.json`。
 
-The right-click `Pet` menu lists valid packages discovered under `sample-pets/*/pet.json` and `${CODEX_HOME:-~/.codex}/pets/*/pet.json`. A package appears there only after its manifest, spritesheet size, used frames, and transparent unused cells pass validation. The menu also includes `Choose Pet Folder...`, which lets you select any folder containing this exact pair:
+右键 `Pet` 菜单会列出在 `sample-pets/*/pet.json` 和 `${CODEX_HOME:-~/.codex}/pets/*/pet.json` 下发现的合法包。一个包只有在它的清单、精灵表尺寸、已用帧数以及未用单元格的透明度都通过验证后才会出现在菜单中。菜单还包含 `Choose Pet Folder...`，允许你选择任何包含以下精确配对的文件夹：
 
 ```text
 pet.json
 spritesheet.webp
 ```
 
-To make a pet appear in the menu on every launch, place that folder under `sample-pets/<pet-id>/` or `${CODEX_HOME:-~/.codex}/pets/<pet-id>/`.
+要让宠物在每次启动时都出现在菜单中，请将文件夹放在 `sample-pets/<pet-id>/` 或 `${CODEX_HOME:-~/.codex}/pets/<pet-id>/` 下。
 
-`Choose Pet Folder...` only loads the selected folder for the current run. It does not copy, install, or modify pet files.
+`Choose Pet Folder...` 仅在当前运行中加载所选文件夹。它不会复制、安装或修改宠物文件。
 
-Resize smoke test:
+尺寸冒烟测试：
 
 ```bash
 swift run LightPetDesktop --show-dock --resize-smoke-test
 ```
 
-This opens the native panel, switches through `0.5x`, `0.75x`, `1x`, `1.25x`, and `1.5x`, verifies the actual window size, then exits.
+这会打开原生面板，依次切换 `0.5x`、`0.75x`、`1x`、`1.25x` 和 `1.5x`，验证实际窗口尺寸，然后退出。
 
-The default sample package is copied from:
+默认示例包复制自：
 
 ```text
 /Users/boom/.codex/pets/conan/
 ```
 
-## What Is Rendered
+## 渲染内容
 
-- Loads a local Codex pet manifest from `pet.json`.
-- Resolves `spritesheetPath` relative to the manifest URL.
-- Renders a `1536x1872` atlas as `8x9` cells.
-- Uses `192x208` cells and the Codex row/frame duration table.
-- Plays the same named states used by custom Codex pets.
+- 从 `pet.json` 加载本地 Codex 宠物清单。
+- 相对于清单 URL 解析 `spritesheetPath`。
+- 将 `1536x1872` 的图集渲染为 `8x9` 单元格。
+- 使用 `192x208` 的单元格和 Codex 行/帧时长表。
+- 播放与自定义 Codex 宠物相同的命名状态。
 
-`LightPetDesktop` adds a local native macOS wrapper for the same files. It uses a transparent, borderless, floating AppKit panel and renders the same fixed atlas directly with Core Graphics. Transparent sprite pixels do not start pet interactions, and dragging is clamped to the visible screen area.
+`LightPetDesktop` 为这些文件添加了一个本地原生 macOS 包装器。它使用透明、无边框、浮动的 AppKit 面板，并直接用 Core Graphics 渲染相同的固定图集。透明的精灵像素不会触发宠物交互，且拖动会被限制在可见屏幕区域内。
 
-## File Contract
+## 文件契约
 
 ```text
 sample-pets/<pet-id>/
@@ -93,7 +93,7 @@ sample-pets/<pet-id>/
 └── spritesheet.webp
 ```
 
-`pet.json`:
+`pet.json`：
 
 ```json
 {
@@ -104,29 +104,29 @@ sample-pets/<pet-id>/
 }
 ```
 
-For right-click folder selection, the folder must contain `pet.json`, `spritesheet.webp`, and `pet.json` must set `"spritesheetPath": "spritesheet.webp"`.
+对于右键文件夹选择，文件夹必须包含 `pet.json`、`spritesheet.webp`，且 `pet.json` 必须设置 `"spritesheetPath": "spritesheet.webp"`。
 
-## Spritesheet Contract
+## 精灵表契约
 
-`spritesheet.webp` must be exactly `1536x1872` pixels:
+`spritesheet.webp` 必须恰好为 `1536x1872` 像素：
 
 ```text
-grid:  8 columns x 9 rows
-cell:  192x208 pixels
+网格：8 列 x 9 行
+单元格：192x208 像素
 ```
 
-Each row is one animation state. Used cells must contain visible pet pixels; unused cells after the row's frame count must be fully transparent.
+每一行是一个动画状态。已用单元格必须包含可见的宠物像素；该行帧数之后的未用单元格必须完全透明。
 
-| Row | State | Frames | What The Row Should Show |
+| 行 | 状态 | 帧数 | 该行应展示的内容 |
 | --- | --- | ---: | --- |
-| 0 | `idle` | 6 | Calm resting loop, subtle breathing or blink. |
-| 1 | `running-right` | 8 | Locomotion moving toward the right. |
-| 2 | `running-left` | 8 | Locomotion moving toward the left. |
-| 3 | `waving` | 4 | Friendly wave using the pet's limb only. |
-| 4 | `jumping` | 5 | Vertical hop or bounce using body position. |
-| 5 | `failed` | 8 | Dizzy, sad, or failed reaction. |
-| 6 | `waiting` | 6 | Attentive hover state, looking ready. |
-| 7 | `running` | 6 | Neutral running-in-place loop. |
-| 8 | `review` | 6 | Focused inspection or thinking pose. |
+| 0 | `idle`（闲置） | 6 | 平静的休息循环，微妙的呼吸或眨眼。 |
+| 1 | `running-right`（向右奔跑） | 8 | 向右移动的 locomotion。 |
+| 2 | `running-left`（向左奔跑） | 8 | 向左移动的 locomotion。 |
+| 3 | `waving`（挥手） | 4 | 仅使用宠物肢体进行的友好挥手。 |
+| 4 | `jumping`（跳跃） | 5 | 使用身体位置进行的垂直跳跃或弹跳。 |
+| 5 | `failed`（失败） | 8 | 眩晕、悲伤或失败反应。 |
+| 6 | `waiting`（等待） | 6 | 专注的悬停状态，看起来已准备好。 |
+| 7 | `running`（奔跑） | 6 | 中性的原地奔跑循环。 |
+| 8 | `review`（审视） | 6 | 专注的检查或思考姿势。 |
 
-When prompting `hatch-pet` or another generator, ask for a compact pixel-art mascot with consistent identity across all rows, transparent background, thick readable outline, limited palette, and no text, UI, speech bubbles, shadows, loose motion lines, or detached decorative effects. Effects should only be small, hard-edged, state-relevant, and attached to the pet silhouette.
+在使用 `hatch-pet` 或其他生成器时，请要求生成一个紧凑的像素艺术吉祥物，在所有行中保持一致的识别度，透明背景，粗而清晰的轮廓，有限的调色板，并且没有文字、UI、对话气泡、阴影、松散的运动线或分离的装饰效果。效果应该只有小型的、硬边缘的、与状态相关的，并且附着在宠物轮廓上。
