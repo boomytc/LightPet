@@ -222,7 +222,7 @@ background-position-y: -rowIndex * 208px
 
 ## 桌面包装器逻辑
 
-`Sources/LightPetDesktop/main.swift` 中的原生桌面包装器保持相同的宠物包契约。它只改变宿主表面：
+`Sources/LightPetDesktop/Core`、`UI` 和 `App` 中的原生桌面包装器保持相同的宠物包契约。它只改变宿主表面：
 
 1. 解码 `pet.json`。
 2. 使用 `NSImage` 解码 `spritesheet.webp`。
@@ -292,11 +292,15 @@ spaces: can join all spaces, fullscreen auxiliary
 此工作空间在以下文件中实现了本地运行时：
 
 ```text
-index.html
-styles.css
-app.js
+preview/web/index.html
+preview/web/styles.css
+preview/web/app.js
 Package.swift
-Sources/LightPetDesktop/main.swift
+Sources/LightPetDesktop/Core/PetRuntime.swift
+Sources/LightPetDesktop/UI/PetAnimationView.swift
+Sources/LightPetDesktop/UI/WindowGeometry.swift
+Sources/LightPetDesktop/App/AppDelegate.swift
+Sources/LightPetDesktop/App/main.swift
 ```
 
 原生桌面包装器从以下位置发现默认宠物：
