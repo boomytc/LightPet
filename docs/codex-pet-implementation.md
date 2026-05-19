@@ -1,27 +1,27 @@
-# Codex Pet Implementation Notes
+# Codex 宠物实现笔记
 
-## Project Boundary
+## 项目边界
 
-LightPet is only a player and desktop presentation wrapper for existing Codex-compatible pet packages. It is responsible for:
+LightPet 只是现有 Codex 兼容宠物包的播放器和桌面展示包装器。它负责：
 
-- Reading `pet.json`.
-- Loading and validating `spritesheet.webp`.
-- Mapping mouse actions to existing animation rows.
-- Showing size and pet-package choices in the desktop right-click menu.
+- 读取 `pet.json`。
+- 加载和验证 `spritesheet.webp`。
+- 将鼠标动作映射到现有的动画行。
+- 在桌面右键菜单中显示尺寸和宠物包选择。
 
-It is not responsible for:
+它不负责：
 
-- Generating pet artwork.
-- Repairing broken rows or transparent backgrounds.
-- Prompt planning for image generation.
-- Packaging generated files.
-- Integrating animation states with external app or software events.
+- 生成宠物美术资源。
+- 修复损坏的行或透明背景。
+- 图像生成的提示词规划。
+- 打包生成的文件。
+- 将动画状态与外部应用或软件事件集成。
 
-Use the `hatch-pet` skill or another asset pipeline to create packages that match the contract below.
+使用 `hatch-pet` 技能或其他资源管线来创建符合以下契约的包。
 
-## Runtime Contract
+## 运行时契约
 
-LightPet reads the same pet directory used by Codex and the `hatch-pet` skill:
+LightPet 读取 Codex 和 `hatch-pet` 技能使用的相同宠物目录：
 
 ```text
 ${CODEX_HOME:-$HOME/.codex}/pets/<pet-id>/
@@ -29,7 +29,7 @@ ${CODEX_HOME:-$HOME/.codex}/pets/<pet-id>/
 └── spritesheet.webp
 ```
 
-The manifest is intentionally small:
+清单被刻意保持精简：
 
 ```json
 {
@@ -41,13 +41,13 @@ The manifest is intentionally small:
 }
 ```
 
-The app discovers pets by folder name, reads `pet.json`, then loads the spritesheet named by `spritesheetPath`. For right-click folder selection, LightPet expects the selected folder to contain `pet.json` and `spritesheet.webp`, and expects `pet.json` to set `"spritesheetPath": "spritesheet.webp"`.
+应用通过文件夹名称发现宠物，读取 `pet.json`，然后加载由 `spritesheetPath` 命名的精灵表。对于右键文件夹选择，LightPet 期望所选文件夹包含 `pet.json` 和 `spritesheet.webp`，并且期望 `pet.json` 设置 `"spritesheetPath": "spritesheet.webp"`。
 
-`rendering` is optional. Use `pixelated` for pixel art and `smooth` for non-pixel styles such as smooth 3D mascot art, hand-drawn sprites, or flat illustration. Omitted values default to `pixelated`.
+`rendering` 是可选的。像素艺术使用 `pixelated`，非像素风格（如平滑 3D 吉祥物艺术、手绘精灵或平面插画）使用 `smooth`。省略时默认为 `pixelated`。
 
-## Atlas Geometry
+## 图集几何
 
-The animation surface is a fixed sprite atlas:
+动画表面是一个固定的精灵图集：
 
 ```text
 atlas: 1536x1872
@@ -55,41 +55,41 @@ grid:  8 columns x 9 rows
 cell:  192x208
 ```
 
-The player does not need per-frame rectangles in the manifest. A state maps to a fixed atlas row, and a frame index maps to a fixed column. Unused cells after the last used column in a row must stay fully transparent.
+播放器不需要清单中的逐帧矩形。一个状态映射到固定的图集行，帧索引映射到固定的列。一行中最后已用列之后的未用单元格必须保持完全透明。
 
-`spritesheet.webp` should contain the pet only, on a transparent background. Each used frame must keep the same pet identity, silhouette, palette, outline style, and proportions. Avoid text, UI, speech bubbles, shadows, guide boxes, frame numbers, detached motion lines, loose sparkles, or decorative effects that are separate from the pet body.
+`spritesheet.webp` 应该只包含宠物本身，背景透明。每个已用帧必须保持相同的宠物识别度、轮廓、调色板、轮廓样式和比例。避免文字、UI、对话气泡、阴影、引导框、帧编号、分离的运动线、松散闪光或与宠物身体分离的装饰效果。
 
-## Animation Table
+## 动画表
 
-| Row | State | Frames | Durations |
+| 行 | 状态 | 帧数 | 时长 |
 | --- | --- | ---: | --- |
 | 0 | idle | 6 | 280, 110, 110, 140, 140, 320 ms |
-| 1 | running-right | 8 | 120 ms each, final 220 ms |
-| 2 | running-left | 8 | 120 ms each, final 220 ms |
-| 3 | waving | 4 | 140 ms each, final 280 ms |
-| 4 | jumping | 5 | 140 ms each, final 280 ms |
-| 5 | failed | 8 | 140 ms each, final 240 ms |
-| 6 | waiting | 6 | 150 ms each, final 260 ms |
-| 7 | running | 6 | 120 ms each, final 220 ms |
-| 8 | review | 6 | 150 ms each, final 280 ms |
+| 1 | running-right | 8 | 每帧 120 ms，最后一帧 220 ms |
+| 2 | running-left | 8 | 每帧 120 ms，最后一帧 220 ms |
+| 3 | waving | 4 | 每帧 140 ms，最后一帧 280 ms |
+| 4 | jumping | 5 | 每帧 140 ms，最后一帧 280 ms |
+| 5 | failed | 8 | 每帧 140 ms，最后一帧 240 ms |
+| 6 | waiting | 6 | 每帧 150 ms，最后一帧 260 ms |
+| 7 | running | 6 | 每帧 120 ms，最后一帧 220 ms |
+| 8 | review | 6 | 每帧 150 ms，最后一帧 280 ms |
 
-Prompting guidance for `hatch-pet` or another generator:
+`hatch-pet` 或其他生成器的提示词指导：
 
-The row names stay Codex-compatible, but LightPet treats them as mouse-action slots. For a mouse-only desktop pet, design the visuals around direct manipulation instead of external app state.
+行名称保持 Codex 兼容，但 LightPet 将它们视为鼠标动作槽位。对于纯鼠标桌面宠物，围绕直接操作而非外部应用状态来设计视觉效果。
 
-| State | Visual Intent |
+| 状态 | 视觉意图 |
 | --- | --- |
-| `idle` | Calm resting loop with subtle breathing, blink, or small posture shift. |
-| `running-right` | Drag-right pose: the pet is pulled by the right hand, right sleeve, or right side of the body. |
-| `running-left` | Drag-left pose: the pet is pulled by the left hand, left sleeve, or left side of the body. |
-| `waving` | Long-press pose: the pet looks grabbed and may lightly struggle; no wave marks or floating symbols. |
-| `jumping` | Drag-up pose: the pet is lifted upward or stretched upward by the grab. |
-| `failed` | Click reaction: the pet staggers one step backward, then recovers. |
-| `waiting` | Attentive hover state, looking ready for interaction. |
-| `running` | Spare neutral drag or struggle loop; keep valid frames even though the current mouse logic does not trigger it directly. |
-| `review` | Drag-down pose: the pet lies low or prone, as if pressed down by the cursor. |
+| `idle` | 平静的休息循环，带有微妙的呼吸、眨眼或小幅姿势变化。 |
+| `running-right` | 向右拖动姿势：宠物被右手、右袖或身体右侧拉动。 |
+| `running-left` | 向左拖动姿势：宠物被左手、左袖或身体左侧拉动。 |
+| `waving` | 长按姿势：宠物看起来被抓住，可能会轻微挣扎；没有波浪标记或浮动符号。 |
+| `jumping` | 向上拖动姿势：宠物被向上提起或被抓取向上拉伸。 |
+| `failed` | 点击反应：宠物向后踉跄一步，然后恢复。 |
+| `waiting` | 专注的悬停状态，看起来准备好交互。 |
+| `running` | 备用的中性拖动或挣扎循环；即使当前鼠标逻辑不会直接触发它，也要保持有效帧。 |
+| `review` | 向下拖动姿势：宠物趴低或俯卧，仿佛被光标按下。 |
 
-LightPet supports non-pixel styles. The runtime only requires the transparent spritesheet contract; visual style can be pixel art, hand-drawn, flat illustration, smooth 3D toy-like mascot art, or another compact readable style. For non-pixel art, set `"rendering": "smooth"` in `pet.json`; for pixel art, set `"rendering": "pixelated"` or omit the field.
+LightPet 支持非像素风格。运行时只需要透明的精灵表契约；视觉风格可以是像素艺术、手绘、平面插画、平滑 3D 玩具式吉祥物艺术或其他紧凑易读的风格。对于非像素艺术，在 `pet.json` 中设置 `"rendering": "smooth"`；对于像素艺术，设置 `"rendering": "pixelated"` 或省略该字段。
 
 With reference image:
 
@@ -200,17 +200,17 @@ Animation rows:
 8. review, 6 frames: drag-down pose; the pet lies low or prone, as if pressed down by the cursor.
 ```
 
-## Playback Logic
+## 播放逻辑
 
-The minimal web runtime is:
+最小的 Web 运行时是：
 
-1. Fetch `pet.json`.
-2. Resolve `spritesheetPath` against the manifest URL.
-3. For the active state, read `row`, `frames`, and `durations`.
-4. Render one `192x208` viewport using the spritesheet as a CSS background.
-5. Advance frame index by the state duration table.
+1. 获取 `pet.json`。
+2. 根据清单 URL 解析 `spritesheetPath`。
+3. 对于活动状态，读取 `row`、`frames` 和 `durations`。
+4. 使用精灵表作为 CSS 背景渲染一个 `192x208` 视口。
+5. 按状态时长表推进帧索引。
 
-The CSS background math is:
+CSS 背景计算如下：
 
 ```text
 background-size: 1536px 1872px
@@ -218,21 +218,21 @@ background-position-x: -frameIndex * 192px
 background-position-y: -rowIndex * 208px
 ```
 
-When scaled, multiply every atlas and cell dimension by the same scale factor.
+缩放时，将每个图集和单元格尺寸乘以相同的缩放因子。
 
-## Desktop Wrapper Logic
+## 桌面包装器逻辑
 
-The native desktop wrapper in `Sources/LightPetDesktop/main.swift` keeps the same pet package contract. It changes only the host surface:
+`Sources/LightPetDesktop/main.swift` 中的原生桌面包装器保持相同的宠物包契约。它只改变宿主表面：
 
-1. Decode `pet.json`.
-2. Decode `spritesheet.webp` with `NSImage`.
-3. Validate the decoded `CGImage` is exactly `1536x1872`.
-4. Pre-slice and validate all used frames, while checking unused cells are transparent.
-5. Open a transparent, borderless `NSPanel`.
-6. Draw the active cached `192x208` frame into the panel.
-7. Advance frames with a `Timer` using the same duration table as the web preview.
+1. 解码 `pet.json`。
+2. 使用 `NSImage` 解码 `spritesheet.webp`。
+3. 验证解码后的 `CGImage` 恰好为 `1536x1872`。
+4. 预切片并验证所有已用帧，同时检查未用单元格是否透明。
+5. 打开一个透明、无边框的 `NSPanel`。
+6. 将活动的缓存 `192x208` 帧绘制到面板中。
+7. 使用与 Web 预览相同的时长表，通过 `Timer` 推进帧。
 
-Window settings:
+窗口设置：
 
 ```text
 style: borderless, non-activating panel
@@ -241,43 +241,43 @@ level: floating
 spaces: can join all spaces, fullscreen auxiliary
 ```
 
-Mouse behavior:
+鼠标行为：
 
 ```text
-hover visible sprite  waiting
-click                 failed
-long press            waving
-drag left/right       move the panel and select running-left/running-right
-drag up/down          move the panel and select jumping/review
-mouse up              return to waiting or idle depending on pointer position
-right click           show size, pet, reset-position, and quit menu
+悬停在可见精灵上  waiting（等待）
+点击                 failed（失败）
+长按                 waving（挥手）
+向左/向右拖动        移动面板并选择 running-left/running-right（向左/向右奔跑）
+向上/向下拖动        移动面板并选择 jumping/review（跳跃/审视）
+鼠标松开             根据指针位置返回 waiting（等待）或 idle（闲置）
+右键点击             显示尺寸、宠物、重置位置和退出菜单
 ```
 
-The right-click menu intentionally does not list animation states. States are selected by the desktop pet's mouse interaction model.
+右键菜单有意不列出动画状态。状态由桌面宠物的鼠标交互模型选择。
 
-Additional desktop behavior:
+额外的桌面行为：
 
-- Pet choices are discovered only from `${CODEX_HOME:-$HOME/.codex}/pets/*/pet.json`.
-- If the Codex pet directory does not exist, startup creates it with intermediate directories.
-- If the Codex pet path exists but is not a directory, startup shows a fatal alert.
-- Startup lookup without `--pet` tries an explicit `--pet-id`, then the last successfully selected Codex pet, then the first discoverable Codex pet.
-- If the remembered or requested Codex pet no longer exists, startup falls back to the first discoverable Codex pet instead of failing immediately.
-- If no valid pet exists after fallback, startup shows a fatal alert instructing the user to add a folder containing `pet.json` and `spritesheet.webp`.
-- If a non-`--pet` candidate exists but fails full spritesheet validation while loading, startup tries the next discoverable Codex pet before showing a fatal alert.
-- Successful launches and right-click menu switches for `${CODEX_HOME:-$HOME/.codex}/pets/<pet-id>/` packages remember that `pet-id` for the next launch.
-- The right-click menu keeps discovery lightweight: it reads `pet.json` and confirms `spritesheet.webp` exists, while full spritesheet validation runs only when a pet is selected or launched.
-- The right-click `Pet` submenu includes `Choose Pet Folder...`; it loads a selected directory only when that directory contains `pet.json` and `spritesheet.webp`.
-- `Choose Pet Folder...` is a temporary runtime load. It does not copy, install, modify pet files, or persist a default for folders outside the Codex pet directory.
-- To make a pet appear in the menu on every launch, put its folder under `${CODEX_HOME:-$HOME/.codex}/pets/<pet-id>/`.
-- Window size can be changed from the right-click menu.
-- Hit testing samples the current frame alpha map, so transparent sprite pixels do not start pet interaction.
-- Dragging is clamped to the visible screen union to keep the pet reachable.
+- 宠物选择仅从 `${CODEX_HOME:-$HOME/.codex}/pets/*/pet.json` 中发现。
+- 如果 Codex 宠物目录不存在，启动时会创建它及其中间目录。
+- 如果 Codex 宠物路径存在但不是目录，启动时会显示致命警告。
+- 不带 `--pet` 的启动查找会依次尝试显式的 `--pet-id`、最后成功选择的 Codex 宠物、第一个可发现的 Codex 宠物。
+- 如果记住的或请求的 Codex 宠物不再存在，启动时会回退到第一个可发现的 Codex 宠物，而不是立即失败。
+- 如果回退后没有有效的宠物存在，启动时会显示致命警告，指示用户添加包含 `pet.json` 和 `spritesheet.webp` 的文件夹。
+- 如果非 `--pet` 候选存在但在加载时未能通过完整的精灵表验证，启动时会在显示致命警告之前尝试下一个可发现的 Codex 宠物。
+- 对于 `${CODEX_HOME:-$HOME/.codex}/pets/<pet-id>/` 包的成功启动和右键菜单切换会记住该 `pet-id` 以供下次启动使用。
+- 右键菜单保持发现轻量：它读取 `pet.json` 并确认 `spritesheet.webp` 存在，而完整的精灵表验证仅在宠物被选择或启动时运行。
+- 右键 `Pet` 子菜单包含 `Choose Pet Folder...`；只有当目录包含 `pet.json` 和 `spritesheet.webp` 时才会加载所选目录。
+- `Choose Pet Folder...` 是临时运行时加载。它不会复制、安装、修改宠物文件，也不会为 Codex 宠物目录之外的文件夹持久化默认值。
+- 要让宠物在每次启动时都出现在菜单中，请将其文件夹放在 `${CODEX_HOME:-$HOME/.codex}/pets/<pet-id>/` 下。
+- 可以从右键菜单更改窗口大小。
+- 命中测试采样当前帧的 alpha 贴图，因此透明的精灵像素不会启动宠物交互。
+- 拖动被限制在可见屏幕的并集内，以保持宠物可触及。
 
-This is the practical minimum for a desktop pet. More advanced behavior should be added as explicit mouse or desktop-environment triggers on top of the same state-controller boundary. Software integration events are intentionally out of scope for now.
+这是桌面宠物的实际最小实现。更高级的行为应该作为显式的鼠标或桌面环境触发器添加到相同的状态控制器边界之上。软件集成事件目前有意超出范围。
 
-## External Asset Creation
+## 外部资源创建
 
-Pet generation stays outside this repository. A generator such as the `hatch-pet` skill should produce the final folder:
+宠物生成保留在此仓库之外。诸如 `hatch-pet` 技能之类的生成器应该生成最终文件夹：
 
 ```text
 <pet-id>/
@@ -285,11 +285,11 @@ Pet generation stays outside this repository. A generator such as the `hatch-pet
 └── spritesheet.webp
 ```
 
-For a package to work here, the generated spritesheet must already be transparent, correctly sized, row-aligned, visually consistent, and free of non-transparent unused cells. LightPet validates these runtime requirements but does not repair them.
+为了让包在这里工作，生成的精灵表必须已经是透明的、尺寸正确的、行对齐的、视觉一致的，并且没有非透明的未用单元格。LightPet 验证这些运行时要求但不修复它们。
 
-## Current Workspace Reproduction
+## 当前工作空间复现
 
-This workspace implements a local runtime in:
+此工作空间在以下文件中实现了本地运行时：
 
 ```text
 index.html
@@ -299,12 +299,12 @@ Package.swift
 Sources/LightPetDesktop/main.swift
 ```
 
-The native desktop wrapper discovers default pets from:
+原生桌面包装器从以下位置发现默认宠物：
 
 ```text
 ${CODEX_HOME:-$HOME/.codex}/pets/
 ```
 
-The browser preview remains a manifest-path preview tool; it can load any pet package URL that the local web server can serve.
+浏览器预览仍然是一个清单路径预览工具；它可以加载本地 Web 服务器能够提供的任何宠物包 URL。
 
-This proves that the Codex pet format can be reproduced outside the Codex app as long as the atlas and manifest contract are preserved.
+这证明了只要保留图集和清单契约，Codex 宠物格式就可以在 Codex 应用之外复现。
