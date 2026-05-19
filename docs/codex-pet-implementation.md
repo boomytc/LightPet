@@ -258,9 +258,12 @@ The right-click menu intentionally does not list animation states. States are se
 Additional desktop behavior:
 
 - Pet choices are discovered only from workspace-local `pets/*/pet.json`.
+- Startup lookup without `--pet` tries an explicit `--pet-id`, then the last successfully selected workspace pet, then the first discoverable workspace pet.
+- If the remembered or requested workspace pet no longer exists, startup falls back to the first discoverable workspace pet instead of failing immediately.
+- Successful launches and right-click menu switches for `pets/<pet-id>/` packages remember that `pet-id` for the next launch.
 - The right-click menu keeps discovery lightweight: it reads `pet.json` and confirms `spritesheet.webp` exists, while full spritesheet validation runs only when a pet is selected or launched.
 - The right-click `Pet` submenu includes `Choose Pet Folder...`; it loads a selected directory only when that directory contains `pet.json` and `spritesheet.webp`.
-- `Choose Pet Folder...` is a temporary runtime load. It does not copy, install, or modify pet files.
+- `Choose Pet Folder...` is a temporary runtime load. It does not copy, install, modify pet files, or persist a workspace default for folders outside `pets/`.
 - To make a pet appear in the menu on every launch, put its folder under workspace-local `pets/<pet-id>/`.
 - Window size can be changed from the right-click menu.
 - Hit testing samples the current frame alpha map, so transparent sprite pixels do not start pet interaction.

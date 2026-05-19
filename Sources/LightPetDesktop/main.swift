@@ -11,6 +11,8 @@ private let atlasWidth = cellWidth * atlasColumns
 private let atlasHeight = cellHeight * atlasRows
 private let visibleAlphaThreshold: UInt8 = 16
 private let availableScales: [CGFloat] = [0.5, 0.75, 1, 1.25, 1.5]
+private let defaultsSuiteName = "LightPetDesktop"
+private let lastWorkspacePetIDKey = "lastWorkspacePetID"
 
 private struct AnimationRow {
     let state: String
@@ -163,7 +165,7 @@ private struct PetChoice {
 
 private struct LaunchOptions {
     var manifestPath: String?
-    var petID = "conan"
+    var petID: String?
     var initialState = "idle"
     var scale: CGFloat = 1
     var showDock = false
@@ -240,11 +242,12 @@ private enum LaunchError: Error, CustomStringConvertible {
 
 private let helpText = """
 Usage:
-  swift run LightPetDesktop [--pet path/to/pet.json] [--pet-id conan] [--state idle] [--scale 1] [--show-dock]
+  swift run LightPetDesktop [--pet path/to/pet.json] [--pet-id pet-id] [--state idle] [--scale 1] [--show-dock]
 
 Pet lookup:
   --pet exact manifest path wins.
-  Without --pet, LightPet tries pets/<pet-id>/pet.json in the current workspace.
+  Without --pet, LightPet tries --pet-id, then the last selected workspace pet,
+  then the first pet found under pets/.
 
 Mouse:
   hover visible sprite  waiting
@@ -370,15 +373,19 @@ private func resolveManifestURL(options: LaunchOptions) throws -> URL {
         return manifestURL
     }
 
-    let manifestURL = workspacePetLibraryURL()
-        .appendingPathComponent(options.petID)
-        .appendingPathComponent("pet.json")
-        .standardizedFileURL
-    if FileManager.default.fileExists(atPath: manifestURL.path) {
-        return manifestURL
+    if let petID = options.petID ?? lastWorkspacePetID() {
+        let manifestURL = workspacePetManifestURL(petID: petID)
+        if FileManager.default.fileExists(atPath: manifestURL.path) {
+            return manifestURL
+        }
+        fputs("LightPetDesktop warning: pet '\(petID)' was not found under \(workspacePetLibraryURL().path); falling back to the first available workspace pet.\n", stderr)
     }
 
-    throw RuntimeError("Could not find pet '\(options.petID)' under \(workspacePetLibraryURL().path). Pass --pet path/to/pet.json or copy the pet folder into pets/<pet-id>.")
+    if let fallback = discoverPetChoices().first {
+        return fallback.manifestURL
+    }
+
+    throw RuntimeError("Could not find any pet under \(workspacePetLibraryURL().path). Pass --pet path/to/pet.json or copy a pet folder into pets/<pet-id>.")
 }
 
 private func resolveSpritesheetURL(manifest: PetManifest, manifestURL: URL) -> URL {
@@ -403,6 +410,41 @@ private func workspacePetLibraryURL() -> URL {
     URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         .appendingPathComponent("pets")
         .standardizedFileURL
+}
+
+private func workspacePetManifestURL(petID: String) -> URL {
+    workspacePetLibraryURL()
+        .appendingPathComponent(petID)
+        .appendingPathComponent("pet.json")
+        .standardizedFileURL
+}
+
+private func lastWorkspacePetID() -> String? {
+    petDefaults().string(forKey: lastWorkspacePetIDKey)
+}
+
+private func rememberWorkspacePet(package: PetPackage) {
+    guard let petID = workspacePetID(for: package.manifestURL) else {
+        return
+    }
+    petDefaults().set(petID, forKey: lastWorkspacePetIDKey)
+}
+
+private func workspacePetID(for manifestURL: URL) -> String? {
+    let standardizedManifestURL = manifestURL.standardizedFileURL
+    guard standardizedManifestURL.lastPathComponent == "pet.json" else {
+        return nil
+    }
+
+    let petDirectoryURL = standardizedManifestURL.deletingLastPathComponent().standardizedFileURL
+    guard petDirectoryURL.deletingLastPathComponent().standardizedFileURL.path == workspacePetLibraryURL().path else {
+        return nil
+    }
+    return petDirectoryURL.lastPathComponent
+}
+
+private func petDefaults() -> UserDefaults {
+    UserDefaults(suiteName: defaultsSuiteName) ?? .standard
 }
 
 private struct RuntimeError: Error, CustomStringConvertible {
@@ -829,6 +871,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        rememberWorkspacePet(package: currentPackage)
+
         let size = NSSize(width: CGFloat(cellWidth) * currentScale, height: CGFloat(cellHeight) * currentScale)
         let panel = PetPanel(
             contentRect: NSRect(origin: defaultWindowOrigin(size: size), size: size),
@@ -992,6 +1036,7 @@ extension AppDelegate: PetAnimationViewMenuDelegate {
 
     private func switchPet(to package: PetPackage, view: PetAnimationView) {
         currentPackage = package
+        rememberWorkspacePet(package: package)
         panel?.title = package.manifest.displayName
         view.updatePackage(package)
         print("LightPetDesktop switched to \(package.manifest.displayName) from \(package.manifestURL.path)")
