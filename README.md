@@ -76,6 +76,14 @@ swift run LightPetDesktop --show-dock --resize-smoke-test
 
 这会打开原生面板，依次切换 `0.5x`、`0.75x`、`1x`、`1.25x` 和 `1.5x`，验证实际窗口尺寸，然后退出。
 
+本地 `.app` 打包：
+
+```bash
+scripts/package_app.sh
+```
+
+这会生成 `dist/LightPet.app`，使用 ad-hoc 签名，适合自己或少量朋友本机使用。`.app` 不内置宠物资源，仍读取 `${CODEX_HOME:-$HOME/.codex}/pets`。如果通过聊天工具或浏览器传给朋友，macOS 可能加上 quarantine 标记；这种非公证包需要右键打开一次，或由使用者自行移除 quarantine。
+
 ## 渲染内容
 
 - 从 `pet.json` 加载本地 Codex 宠物清单。

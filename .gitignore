@@ -2,4 +2,5 @@
 .build/
 .playwright-cli/
 output/
+dist/
 .vscode/
