@@ -22,6 +22,8 @@ The current runtime contract is intentionally fixed:
 - cell: `192x208`
 - states: `idle`, `running-right`, `running-left`, `waving`, `jumping`, `failed`, `waiting`, `running`, `review`
 
+`docs/pet-animation-contract.json` is the machine-readable source of truth for atlas geometry, row order, frame counts, durations, mouse mappings, and authoring notes. Run `python3 scripts/validate_animation_contract.py` after changing animation metadata.
+
 For Codex compatibility, adding a new action to an existing pet means regenerating or replacing one of these rows. True extra states need a manifest/runtime design first; do not quietly add extra rows or files that the current runtime cannot play.
 
 ## Code Layout

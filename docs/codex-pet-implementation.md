@@ -61,6 +61,8 @@ cell:  192x208
 
 ## 动画表
 
+机器可读的动画契约位于 `docs/pet-animation-contract.json`。下面的表格是面向阅读的说明；修改状态行、帧数或时长时，先更新 JSON，再运行 `python3 scripts/validate_animation_contract.py` 确认 Swift 运行时一致。
+
 | 行 | 状态 | 帧数 | 时长 |
 | --- | --- | ---: | --- |
 | 0 | idle | 6 | 280, 110, 110, 140, 140, 320 ms |

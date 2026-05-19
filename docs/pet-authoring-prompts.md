@@ -76,17 +76,13 @@ Layout requirements:
 
 ## Compatible State Rows
 
-| State | Frames | Default action | Extra requirements |
-| --- | ---: | --- | --- |
-| `idle` | 6 | Neutral breathing or blinking loop. | Keep motion subtle; this is the reduced-motion safe row. |
-| `running-right` | 8 | Rightward drag or locomotion loop. | Use body, limb, and prop movement only; no speed lines, dust, shadows, or trails. |
-| `running-left` | 8 | Leftward drag or locomotion loop. | Mirror `running-right` only when markings, props, handedness, and direction semantics stay correct. Otherwise generate it as its own row. |
-| `waving` | 4 | Long-press or grabbed greeting pose. | Show the gesture through paw pose only; no wave marks, arcs, symbols, sparkles, or detached effects. |
-| `jumping` | 5 | Drag-up pose: anticipation, lift, peak, descent, settle. | Show vertical motion through pose and body position only; no shadows, dust, landing marks, bounce pads, or motion marks. |
-| `failed` | 8 | Click reaction or deflated failure. | Use slumped pose, sad eyes, drooping limbs, or lower body position. Tears, smoke, or stars must be attached to the pet. |
-| `waiting` | 6 | Attentive hover state. | Keep it ready and readable, distinct from `idle` but not a new identity. |
-| `running` | 6 | Spare neutral drag or in-place movement loop. | Keep valid even if the current mouse runtime does not actively trigger it. |
-| `review` | 6 | Focused inspecting or pressed-down review state. | Use lean, blink, narrowed eyes, head tilt, or paw position; avoid papers, code, UI, punctuation, or new props. |
+The machine-readable source of truth is `docs/pet-animation-contract.json`. Use its `states[*].frames`, `states[*].durationsMs`, `purpose`, `mouseMapping`, and `authoringNotes` fields when writing row prompts or targeted repair instructions.
+
+If a prompt, README, Swift runtime, or Web preview disagrees with that contract, update the contract first and then run:
+
+```bash
+python3 scripts/validate_animation_contract.py
+```
 
 ## Adding One Action To A Finished Pet
 

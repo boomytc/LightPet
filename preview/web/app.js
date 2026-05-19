@@ -1,25 +1,15 @@
-const CELL_WIDTH = 192;
-const CELL_HEIGHT = 208;
-const ATLAS_COLUMNS = 8;
-const ATLAS_ROWS = 9;
-const ATLAS_WIDTH = CELL_WIDTH * ATLAS_COLUMNS;
-const ATLAS_HEIGHT = CELL_HEIGHT * ATLAS_ROWS;
-const VISIBLE_ALPHA_THRESHOLD = 16;
+let CELL_WIDTH = 192;
+let CELL_HEIGHT = 208;
+let ATLAS_COLUMNS = 8;
+let ATLAS_ROWS = 9;
+let ATLAS_WIDTH = CELL_WIDTH * ATLAS_COLUMNS;
+let ATLAS_HEIGHT = CELL_HEIGHT * ATLAS_ROWS;
+let VISIBLE_ALPHA_THRESHOLD = 16;
 const CHROMA_KEY = { r: 0, g: 255, b: 0, threshold: 96 };
+const CONTRACT_URL = "../../docs/pet-animation-contract.json";
 
-const ROWS = [
-  { state: "idle", row: 0, frames: 6, durations: [280, 110, 110, 140, 140, 320], purpose: "calm idle loop" },
-  { state: "running-right", row: 1, frames: 8, durations: [120, 120, 120, 120, 120, 120, 120, 220], purpose: "drag or move right" },
-  { state: "running-left", row: 2, frames: 8, durations: [120, 120, 120, 120, 120, 120, 120, 220], purpose: "drag or move left" },
-  { state: "waving", row: 3, frames: 4, durations: [140, 140, 140, 280], purpose: "long-press pose" },
-  { state: "jumping", row: 4, frames: 5, durations: [140, 140, 140, 140, 280], purpose: "drag upward" },
-  { state: "failed", row: 5, frames: 8, durations: [140, 140, 140, 140, 140, 140, 140, 240], purpose: "click reaction" },
-  { state: "waiting", row: 6, frames: 6, durations: [150, 150, 150, 150, 150, 260], purpose: "hover-ready state" },
-  { state: "running", row: 7, frames: 6, durations: [120, 120, 120, 120, 120, 220], purpose: "spare drag loop" },
-  { state: "review", row: 8, frames: 6, durations: [150, 150, 150, 150, 150, 280], purpose: "pressed or focused state" },
-];
-
-const rowByState = new Map(ROWS.map((row) => [row.state, row]));
+let animationRows = [];
+let rowByState = new Map();
 
 const sprite = document.querySelector("#sprite");
 const petName = document.querySelector("#petName");
@@ -48,7 +38,7 @@ const overrideStatus = document.querySelector("#overrideStatus");
 const rowReview = document.querySelector("#rowReview");
 const rowReviewMeta = document.querySelector("#rowReviewMeta");
 
-let activeRow = ROWS[0];
+let activeRow = null;
 let frameIndex = 0;
 let timer = 0;
 let playing = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -64,6 +54,47 @@ let qaData = null;
 
 function resolveAssetUrl(assetPath, manifestPath) {
   return new URL(assetPath, new URL(manifestPath, window.location.href)).href;
+}
+
+async function loadAnimationContract() {
+  const response = await fetch(CONTRACT_URL, { cache: "no-cache" });
+  if (!response.ok) {
+    throw new Error(`Could not load animation contract: ${response.status}`);
+  }
+  const contract = await response.json();
+  applyAnimationContract(contract);
+}
+
+function applyAnimationContract(contract) {
+  const atlas = contract.atlas;
+  if (!atlas || !Array.isArray(contract.states) || contract.states.length === 0) {
+    throw new Error("Animation contract is missing atlas or states.");
+  }
+
+  CELL_WIDTH = atlas.cellWidth;
+  CELL_HEIGHT = atlas.cellHeight;
+  ATLAS_COLUMNS = atlas.columns;
+  ATLAS_ROWS = atlas.rows;
+  ATLAS_WIDTH = CELL_WIDTH * ATLAS_COLUMNS;
+  ATLAS_HEIGHT = CELL_HEIGHT * ATLAS_ROWS;
+  VISIBLE_ALPHA_THRESHOLD = atlas.visibleAlphaThreshold ?? VISIBLE_ALPHA_THRESHOLD;
+
+  animationRows = contract.states.map((state) => {
+    if (!Array.isArray(state.durationsMs) || state.durationsMs.length !== state.frames) {
+      throw new Error(`${state.state} must have one duration per frame.`);
+    }
+    return {
+      state: state.state,
+      row: state.row,
+      frames: state.frames,
+      durations: state.durationsMs,
+      purpose: state.purpose || state.state,
+      mouseMapping: state.mouseMapping || "",
+      authoringNotes: state.authoringNotes || [],
+    };
+  });
+  rowByState = new Map(animationRows.map((row) => [row.state, row]));
+  activeRow = animationRows[0];
 }
 
 function loadImage(src) {
@@ -175,7 +206,7 @@ function validateAtlas(canvas) {
   }
 
   const context = canvas.getContext("2d", { willReadFrequently: true });
-  for (const row of ROWS) {
+  for (const row of animationRows) {
     for (let column = 0; column < ATLAS_COLUMNS; column += 1) {
       const used = column < row.frames;
       const imageData = context.getImageData(
@@ -247,7 +278,7 @@ function renderQa() {
 
 function renderStateButtons() {
   stateButtons.replaceChildren(
-    ...ROWS.map((row) => {
+    ...animationRows.map((row) => {
       const button = document.createElement("button");
       button.type = "button";
       button.textContent = row.state;
@@ -261,7 +292,7 @@ function renderStateButtons() {
   );
 
   overrideState.replaceChildren(
-    ...ROWS.map((row) => {
+    ...animationRows.map((row) => {
       const option = document.createElement("option");
       option.value = row.state;
       option.textContent = row.state;
@@ -279,7 +310,7 @@ function renderRowReview() {
 
   rowReviewMeta.textContent = "click a frame to inspect it";
   rowReview.replaceChildren(
-    ...ROWS.map((row) => {
+    ...animationRows.map((row) => {
       const card = document.createElement("article");
       const rowCells = qaData.cells.filter((cell) => cell.state === row.state);
       const hasError = rowCells.some((cell) => !cell.ok);
@@ -331,7 +362,7 @@ function renderRowReview() {
 }
 
 function renderFrame() {
-  if (!activeSheetUrl) {
+  if (!activeSheetUrl || !activeRow) {
     return;
   }
 
@@ -361,7 +392,7 @@ function renderFrame() {
 
 function scheduleNextFrame() {
   clearTimeout(timer);
-  if (!playing || !activeSheetUrl) {
+  if (!playing || !activeSheetUrl || !activeRow) {
     return;
   }
   const delay = (activeRow.durations[frameIndex] ?? 140) / speed;
@@ -391,6 +422,9 @@ function selectState(state) {
 }
 
 function stepFrame(delta) {
+  if (!activeRow) {
+    return;
+  }
   playing = false;
   frameIndex = (frameIndex + delta + activeRow.frames) % activeRow.frames;
   renderFrame();
@@ -498,6 +532,9 @@ prevFrame.addEventListener("click", () => stepFrame(-1));
 nextFrame.addEventListener("click", () => stepFrame(1));
 
 lastFrame.addEventListener("click", () => {
+  if (!activeRow) {
+    return;
+  }
   playing = false;
   frameIndex = activeRow.frames - 1;
   renderFrame();
@@ -557,15 +594,20 @@ document.addEventListener("keydown", (event) => {
   } else if (event.key === "ArrowLeft") {
     stepFrame(-1);
   } else if (/^[1-9]$/.test(event.key)) {
-    const row = ROWS[Number(event.key) - 1];
+    const row = animationRows[Number(event.key) - 1];
     if (row) {
       selectState(row.state);
     }
   }
 });
 
-renderStateButtons();
-loadManifest(manifestUrl.value).catch((error) => {
+async function initialize() {
+  await loadAnimationContract();
+  renderStateButtons();
+  await loadManifest(manifestUrl.value);
+}
+
+initialize().catch((error) => {
   frameStatus.textContent = "Load failed";
   qaStatus.textContent = "Fail";
   qaStatus.className = "qa-status fail";
