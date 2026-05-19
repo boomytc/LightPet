@@ -51,16 +51,16 @@ swift run LightPetDesktop --scale 1
 --pet-id conan          未提供 --pet 时的默认查找键
 ```
 
-未提供 `--pet` 时，桌面包装器会依次尝试 `sample-pets/<pet-id>/pet.json`，然后是 `${CODEX_HOME:-~/.codex}/pets/<pet-id>/pet.json`。
+未提供 `--pet` 时，桌面包装器只尝试当前工作区的 `pets/<pet-id>/pet.json`。
 
-右键 `Pet` 菜单会列出在 `sample-pets/*/pet.json` 和 `${CODEX_HOME:-~/.codex}/pets/*/pet.json` 下发现的合法包。一个包只有在它的清单、精灵表尺寸、已用帧数以及未用单元格的透明度都通过验证后才会出现在菜单中。菜单还包含 `Choose Pet Folder...`，允许你选择任何包含以下精确配对的文件夹：
+右键 `Pet` 菜单会轻量列出当前工作区 `pets/*/pet.json` 下发现的候选包。菜单打开时只读取清单并确认精灵表文件存在，避免在右键路径里同步解码每个 WebP；选择某个宠物时才会执行完整的精灵表尺寸、已用帧数以及未用单元格透明度验证。菜单还包含 `Choose Pet Folder...`，允许你选择任何包含以下精确配对的文件夹：
 
 ```text
 pet.json
 spritesheet.webp
 ```
 
-要让宠物在每次启动时都出现在菜单中，请将文件夹放在 `sample-pets/<pet-id>/` 或 `${CODEX_HOME:-~/.codex}/pets/<pet-id>/` 下。
+要让宠物在每次启动时都出现在菜单中，请将文件夹放在工作区的 `pets/<pet-id>/` 下。这样复制、删除和清理冗余宠物都只发生在项目目录里。
 
 `Choose Pet Folder...` 仅在当前运行中加载所选文件夹。它不会复制、安装或修改宠物文件。
 
@@ -71,12 +71,6 @@ swift run LightPetDesktop --show-dock --resize-smoke-test
 ```
 
 这会打开原生面板，依次切换 `0.5x`、`0.75x`、`1x`、`1.25x` 和 `1.5x`，验证实际窗口尺寸，然后退出。
-
-默认示例包复制自：
-
-```text
-/Users/boom/.codex/pets/conan/
-```
 
 ## 渲染内容
 
@@ -91,7 +85,7 @@ swift run LightPetDesktop --show-dock --resize-smoke-test
 ## 文件契约
 
 ```text
-sample-pets/<pet-id>/
+pets/<pet-id>/
 ├── pet.json
 └── spritesheet.webp
 ```

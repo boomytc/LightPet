@@ -244,7 +244,7 @@ Usage:
 
 Pet lookup:
   --pet exact manifest path wins.
-  Without --pet, LightPet tries sample-pets/<pet-id>/pet.json, then ${CODEX_HOME:-~/.codex}/pets/<pet-id>/pet.json.
+  Without --pet, LightPet tries pets/<pet-id>/pet.json in the current workspace.
 
 Mouse:
   hover visible sprite  waiting
@@ -308,18 +308,10 @@ private func loadPetManifest(manifestURL: URL) throws -> PetManifest {
 }
 
 private func discoverPetChoices() -> [PetChoice] {
-    let cwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-    let codexHome = ProcessInfo.processInfo.environment["CODEX_HOME"] ?? "~/.codex"
-    let roots = [
-        Bundle.main.resourceURL?.appendingPathComponent("Pets"),
-        cwd.appendingPathComponent("sample-pets").standardizedFileURL,
-        fileURL(from: "\(codexHome)/pets"),
-    ].compactMap { $0 }
-
     var seenPaths = Set<String>()
     var choices: [PetChoice] = []
 
-    for manifestURL in roots.flatMap(petManifestURLs) {
+    for manifestURL in petManifestURLs(in: workspacePetLibraryURL()) {
         guard !seenPaths.contains(manifestURL.path) else {
             continue
         }
@@ -343,7 +335,10 @@ private func petChoice(manifestURL: URL) -> PetChoice? {
         return nil
     }
 
-    guard (try? loadPetPackage(manifestURL: manifestURL)) != nil else {
+    // Keep context-menu discovery lightweight. Full spritesheet decode,
+    // frame extraction, and alpha validation happen only when a pet is loaded.
+    let spritesheetURL = resolveSpritesheetURL(manifest: manifest, manifestURL: manifestURL)
+    guard FileManager.default.fileExists(atPath: spritesheetURL.path) else {
         return nil
     }
     return PetChoice(manifest: manifest, manifestURL: manifestURL)
@@ -375,19 +370,15 @@ private func resolveManifestURL(options: LaunchOptions) throws -> URL {
         return manifestURL
     }
 
-    let cwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-    let codexHome = ProcessInfo.processInfo.environment["CODEX_HOME"] ?? "~/.codex"
-    let candidates = [
-        Bundle.main.url(forResource: "pet", withExtension: "json", subdirectory: "Pets/\(options.petID)"),
-        cwd.appendingPathComponent("sample-pets/\(options.petID)/pet.json").standardizedFileURL,
-        fileURL(from: "\(codexHome)/pets/\(options.petID)/pet.json"),
-    ].compactMap { $0 }
-
-    for candidate in candidates where FileManager.default.fileExists(atPath: candidate.path) {
-        return candidate
+    let manifestURL = workspacePetLibraryURL()
+        .appendingPathComponent(options.petID)
+        .appendingPathComponent("pet.json")
+        .standardizedFileURL
+    if FileManager.default.fileExists(atPath: manifestURL.path) {
+        return manifestURL
     }
 
-    throw RuntimeError("Could not find pet '\(options.petID)'. Pass --pet path/to/pet.json.")
+    throw RuntimeError("Could not find pet '\(options.petID)' under \(workspacePetLibraryURL().path). Pass --pet path/to/pet.json or copy the pet folder into pets/<pet-id>.")
 }
 
 private func resolveSpritesheetURL(manifest: PetManifest, manifestURL: URL) -> URL {
@@ -406,6 +397,12 @@ private func fileURL(from path: String) -> URL {
         fileURLWithPath: expanded,
         relativeTo: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
     ).standardizedFileURL
+}
+
+private func workspacePetLibraryURL() -> URL {
+    URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        .appendingPathComponent("pets")
+        .standardizedFileURL
 }
 
 private struct RuntimeError: Error, CustomStringConvertible {

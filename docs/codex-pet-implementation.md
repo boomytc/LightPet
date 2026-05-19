@@ -21,10 +21,10 @@ Use the `hatch-pet` skill or another asset pipeline to create packages that matc
 
 ## Runtime Contract
 
-Codex custom pets are local asset packages under:
+LightPet pets are local workspace asset packages under:
 
 ```text
-${CODEX_HOME:-$HOME/.codex}/pets/<pet-id>/
+pets/<pet-id>/
 ├── pet.json
 └── spritesheet.webp
 ```
@@ -257,10 +257,11 @@ The right-click menu intentionally does not list animation states. States are se
 
 Additional desktop behavior:
 
-- Pet choices are discovered from `sample-pets/*/pet.json` and `${CODEX_HOME:-~/.codex}/pets/*/pet.json`, then fully loaded and validated before appearing in the menu.
+- Pet choices are discovered only from workspace-local `pets/*/pet.json`.
+- The right-click menu keeps discovery lightweight: it reads `pet.json` and confirms `spritesheet.webp` exists, while full spritesheet validation runs only when a pet is selected or launched.
 - The right-click `Pet` submenu includes `Choose Pet Folder...`; it loads a selected directory only when that directory contains `pet.json` and `spritesheet.webp`.
 - `Choose Pet Folder...` is a temporary runtime load. It does not copy, install, or modify pet files.
-- To make a pet appear in the menu on every launch, put its folder under `sample-pets/<pet-id>/` or `${CODEX_HOME:-~/.codex}/pets/<pet-id>/`.
+- To make a pet appear in the menu on every launch, put its folder under workspace-local `pets/<pet-id>/`.
 - Window size can be changed from the right-click menu.
 - Hit testing samples the current frame alpha map, so transparent sprite pixels do not start pet interaction.
 - Dragging is clamped to the visible screen union to keep the pet reachable.
@@ -294,7 +295,7 @@ Sources/LightPetDesktop/main.swift
 The default pet package lives at:
 
 ```text
-sample-pets/conan/
+pets/conan/
 ```
 
 This proves that the Codex pet format can be reproduced outside the Codex app as long as the atlas and manifest contract are preserved.
