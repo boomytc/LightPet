@@ -25,8 +25,25 @@
         </div>
 
         <div class="transport" aria-label="Animation controls">
+          <button id="firstFrame" type="button" aria-label="First frame">First</button>
+          <button id="prevFrame" type="button" aria-label="Previous frame">Prev</button>
           <button id="playPause" type="button">Pause</button>
           <button id="nextFrame" type="button">Next Frame</button>
+          <button id="lastFrame" type="button" aria-label="Last frame">Last</button>
+          <label class="loop-control">
+            <input id="loopPlayback" type="checkbox" checked />
+            <span>Loop</span>
+          </label>
+          <label class="speed-control">
+            <span>Speed</span>
+            <select id="speed">
+              <option value="0.5">0.5x</option>
+              <option value="1" selected>1x</option>
+              <option value="1.5">1.5x</option>
+              <option value="2">2x</option>
+              <option value="4">4x</option>
+            </select>
+          </label>
           <label class="scale-control">
             <span>Scale</span>
             <input id="scale" type="range" min="1" max="3" step="0.25" value="2" />
@@ -37,6 +54,32 @@
       <section class="panel" aria-label="Animation state selector">
         <h2>States</h2>
         <div id="stateButtons" class="state-grid"></div>
+      </section>
+
+      <section class="panel" aria-label="Spritesheet QA">
+        <div class="panel-title-row">
+          <h2>QA</h2>
+          <span id="qaStatus" class="qa-status">Waiting</span>
+        </div>
+        <div id="qaSummary" class="qa-summary"></div>
+      </section>
+
+      <section class="panel" aria-label="Single row override preview">
+        <h2>Row Override</h2>
+        <div class="override-grid">
+          <label>
+            <span>Target state</span>
+            <select id="overrideState"></select>
+          </label>
+          <label>
+            <span>Generated row strip</span>
+            <input id="rowStripFile" type="file" accept="image/png,image/jpeg,image/webp" />
+          </label>
+          <button id="clearOverride" type="button">Clear</button>
+        </div>
+        <p id="overrideStatus" class="helper-text">
+          Load a generated strip to preview one row without writing package files.
+        </p>
       </section>
 
       <section class="panel" aria-label="Pet manifest">
@@ -61,6 +104,14 @@
         <div class="atlas-frame">
           <img id="atlasImage" alt="Pet spritesheet atlas" />
         </div>
+      </section>
+
+      <section class="panel rows-panel" aria-label="Row frame review">
+        <div class="panel-title-row">
+          <h2>Rows</h2>
+          <span id="rowReviewMeta"></span>
+        </div>
+        <div id="rowReview" class="row-review"></div>
       </section>
     </main>
 
