@@ -21,10 +21,10 @@ Use the `hatch-pet` skill or another asset pipeline to create packages that matc
 
 ## Runtime Contract
 
-LightPet pets are local workspace asset packages under:
+LightPet reads the same pet directory used by Codex and the `hatch-pet` skill:
 
 ```text
-pets/<pet-id>/
+${CODEX_HOME:-$HOME/.codex}/pets/<pet-id>/
 ├── pet.json
 └── spritesheet.webp
 ```
@@ -257,14 +257,18 @@ The right-click menu intentionally does not list animation states. States are se
 
 Additional desktop behavior:
 
-- Pet choices are discovered only from workspace-local `pets/*/pet.json`.
-- Startup lookup without `--pet` tries an explicit `--pet-id`, then the last successfully selected workspace pet, then the first discoverable workspace pet.
-- If the remembered or requested workspace pet no longer exists, startup falls back to the first discoverable workspace pet instead of failing immediately.
-- Successful launches and right-click menu switches for `pets/<pet-id>/` packages remember that `pet-id` for the next launch.
+- Pet choices are discovered only from `${CODEX_HOME:-$HOME/.codex}/pets/*/pet.json`.
+- If the Codex pet directory does not exist, startup creates it with intermediate directories.
+- If the Codex pet path exists but is not a directory, startup shows a fatal alert.
+- Startup lookup without `--pet` tries an explicit `--pet-id`, then the last successfully selected Codex pet, then the first discoverable Codex pet.
+- If the remembered or requested Codex pet no longer exists, startup falls back to the first discoverable Codex pet instead of failing immediately.
+- If no valid pet exists after fallback, startup shows a fatal alert instructing the user to add a folder containing `pet.json` and `spritesheet.webp`.
+- If a non-`--pet` candidate exists but fails full spritesheet validation while loading, startup tries the next discoverable Codex pet before showing a fatal alert.
+- Successful launches and right-click menu switches for `${CODEX_HOME:-$HOME/.codex}/pets/<pet-id>/` packages remember that `pet-id` for the next launch.
 - The right-click menu keeps discovery lightweight: it reads `pet.json` and confirms `spritesheet.webp` exists, while full spritesheet validation runs only when a pet is selected or launched.
 - The right-click `Pet` submenu includes `Choose Pet Folder...`; it loads a selected directory only when that directory contains `pet.json` and `spritesheet.webp`.
-- `Choose Pet Folder...` is a temporary runtime load. It does not copy, install, modify pet files, or persist a workspace default for folders outside `pets/`.
-- To make a pet appear in the menu on every launch, put its folder under workspace-local `pets/<pet-id>/`.
+- `Choose Pet Folder...` is a temporary runtime load. It does not copy, install, modify pet files, or persist a default for folders outside the Codex pet directory.
+- To make a pet appear in the menu on every launch, put its folder under `${CODEX_HOME:-$HOME/.codex}/pets/<pet-id>/`.
 - Window size can be changed from the right-click menu.
 - Hit testing samples the current frame alpha map, so transparent sprite pixels do not start pet interaction.
 - Dragging is clamped to the visible screen union to keep the pet reachable.
@@ -295,10 +299,12 @@ Package.swift
 Sources/LightPetDesktop/main.swift
 ```
 
-The default pet package lives at:
+The native desktop wrapper discovers default pets from:
 
 ```text
-pets/conan/
+${CODEX_HOME:-$HOME/.codex}/pets/
 ```
+
+The browser preview remains a manifest-path preview tool; it can load any pet package URL that the local web server can serve.
 
 This proves that the Codex pet format can be reproduced outside the Codex app as long as the atlas and manifest contract are preserved.

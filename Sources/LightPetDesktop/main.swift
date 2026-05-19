@@ -12,7 +12,7 @@ private let atlasHeight = cellHeight * atlasRows
 private let visibleAlphaThreshold: UInt8 = 16
 private let availableScales: [CGFloat] = [0.5, 0.75, 1, 1.25, 1.5]
 private let defaultsSuiteName = "LightPetDesktop"
-private let lastWorkspacePetIDKey = "lastWorkspacePetID"
+private let lastCodexPetIDKey = "lastCodexPetID"
 
 private struct AnimationRow {
     let state: String
@@ -246,8 +246,8 @@ Usage:
 
 Pet lookup:
   --pet exact manifest path wins.
-  Without --pet, LightPet tries --pet-id, then the last selected workspace pet,
-  then the first pet found under pets/.
+  Without --pet, LightPet reads ${CODEX_HOME:-$HOME/.codex}/pets.
+  It tries --pet-id, then the last selected Codex pet, then the first pet found.
 
 Mouse:
   hover visible sprite  waiting
@@ -263,7 +263,29 @@ Sizes:
 
 private func loadPetPackage(options: LaunchOptions) throws -> PetPackage {
     let manifestURL = try resolveManifestURL(options: options)
-    return try loadPetPackage(manifestURL: manifestURL)
+    var selectedLoadError: Error?
+    do {
+        return try loadPetPackage(manifestURL: manifestURL)
+    } catch {
+        guard options.manifestPath == nil else {
+            throw error
+        }
+        selectedLoadError = error
+        fputs("LightPetDesktop warning: pet at \(manifestURL.path) could not be loaded: \(error). Trying the next available Codex pet.\n", stderr)
+    }
+
+    let choices = discoverPetChoices().filter { $0.manifestURL.path != manifestURL.path }
+    var lastError = selectedLoadError
+    for choice in choices {
+        do {
+            return try loadPetPackage(manifestURL: choice.manifestURL)
+        } catch {
+            lastError = error
+            fputs("LightPetDesktop warning: pet at \(choice.manifestURL.path) could not be loaded: \(error).\n", stderr)
+        }
+    }
+
+    throw noLoadablePetsError(libraryURL: codexPetLibraryURL(), underlyingError: lastError)
 }
 
 private func loadPetPackage(directoryURL: URL) throws -> PetPackage {
@@ -311,10 +333,17 @@ private func loadPetManifest(manifestURL: URL) throws -> PetManifest {
 }
 
 private func discoverPetChoices() -> [PetChoice] {
+    guard let libraryURL = try? ensureCodexPetLibraryExists() else {
+        return []
+    }
+    return discoverPetChoices(in: libraryURL)
+}
+
+private func discoverPetChoices(in libraryURL: URL) -> [PetChoice] {
     var seenPaths = Set<String>()
     var choices: [PetChoice] = []
 
-    for manifestURL in petManifestURLs(in: workspacePetLibraryURL()) {
+    for manifestURL in petManifestURLs(in: libraryURL) {
         guard !seenPaths.contains(manifestURL.path) else {
             continue
         }
@@ -365,6 +394,8 @@ private func petManifestURLs(in root: URL) -> [URL] {
 }
 
 private func resolveManifestURL(options: LaunchOptions) throws -> URL {
+    let libraryURL = try ensureCodexPetLibraryExists()
+
     if let manifestPath = options.manifestPath {
         let manifestURL = fileURL(from: manifestPath)
         guard FileManager.default.fileExists(atPath: manifestURL.path) else {
@@ -373,19 +404,19 @@ private func resolveManifestURL(options: LaunchOptions) throws -> URL {
         return manifestURL
     }
 
-    if let petID = options.petID ?? lastWorkspacePetID() {
-        let manifestURL = workspacePetManifestURL(petID: petID)
+    if let petID = options.petID ?? lastCodexPetID() {
+        let manifestURL = codexPetManifestURL(petID: petID)
         if FileManager.default.fileExists(atPath: manifestURL.path) {
             return manifestURL
         }
-        fputs("LightPetDesktop warning: pet '\(petID)' was not found under \(workspacePetLibraryURL().path); falling back to the first available workspace pet.\n", stderr)
+        fputs("LightPetDesktop warning: pet '\(petID)' was not found under \(libraryURL.path); falling back to the first available Codex pet.\n", stderr)
     }
 
-    if let fallback = discoverPetChoices().first {
+    if let fallback = discoverPetChoices(in: libraryURL).first {
         return fallback.manifestURL
     }
 
-    throw RuntimeError("Could not find any pet under \(workspacePetLibraryURL().path). Pass --pet path/to/pet.json or copy a pet folder into pets/<pet-id>.")
+    throw noPetsFoundError(libraryURL: libraryURL)
 }
 
 private func resolveSpritesheetURL(manifest: PetManifest, manifestURL: URL) -> URL {
@@ -406,38 +437,71 @@ private func fileURL(from path: String) -> URL {
     ).standardizedFileURL
 }
 
-private func workspacePetLibraryURL() -> URL {
-    URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+private func codexPetLibraryURL() -> URL {
+    codexHomeURL()
         .appendingPathComponent("pets")
         .standardizedFileURL
 }
 
-private func workspacePetManifestURL(petID: String) -> URL {
-    workspacePetLibraryURL()
+private func ensureCodexPetLibraryExists() throws -> URL {
+    let libraryURL = codexPetLibraryURL()
+    var isDirectory: ObjCBool = false
+    if FileManager.default.fileExists(atPath: libraryURL.path, isDirectory: &isDirectory) {
+        guard isDirectory.boolValue else {
+            throw RuntimeError(
+                "The Codex pet path exists but is not a directory: \(libraryURL.path)",
+                alertTitle: "Pet Directory Is Invalid"
+            )
+        }
+        return libraryURL
+    }
+
+    do {
+        try FileManager.default.createDirectory(at: libraryURL, withIntermediateDirectories: true)
+        return libraryURL
+    } catch {
+        throw RuntimeError(
+            "Could not create the Codex pet directory at \(libraryURL.path): \(error.localizedDescription)",
+            alertTitle: "Could Not Create Pet Directory"
+        )
+    }
+}
+
+private func codexHomeURL() -> URL {
+    if let path = ProcessInfo.processInfo.environment["CODEX_HOME"], !path.isEmpty {
+        return fileURL(from: path)
+    }
+    return FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent(".codex")
+        .standardizedFileURL
+}
+
+private func codexPetManifestURL(petID: String) -> URL {
+    codexPetLibraryURL()
         .appendingPathComponent(petID)
         .appendingPathComponent("pet.json")
         .standardizedFileURL
 }
 
-private func lastWorkspacePetID() -> String? {
-    petDefaults().string(forKey: lastWorkspacePetIDKey)
+private func lastCodexPetID() -> String? {
+    petDefaults().string(forKey: lastCodexPetIDKey)
 }
 
-private func rememberWorkspacePet(package: PetPackage) {
-    guard let petID = workspacePetID(for: package.manifestURL) else {
+private func rememberCodexPet(package: PetPackage) {
+    guard let petID = codexPetID(for: package.manifestURL) else {
         return
     }
-    petDefaults().set(petID, forKey: lastWorkspacePetIDKey)
+    petDefaults().set(petID, forKey: lastCodexPetIDKey)
 }
 
-private func workspacePetID(for manifestURL: URL) -> String? {
+private func codexPetID(for manifestURL: URL) -> String? {
     let standardizedManifestURL = manifestURL.standardizedFileURL
     guard standardizedManifestURL.lastPathComponent == "pet.json" else {
         return nil
     }
 
     let petDirectoryURL = standardizedManifestURL.deletingLastPathComponent().standardizedFileURL
-    guard petDirectoryURL.deletingLastPathComponent().standardizedFileURL.path == workspacePetLibraryURL().path else {
+    guard petDirectoryURL.deletingLastPathComponent().standardizedFileURL.path == codexPetLibraryURL().path else {
         return nil
     }
     return petDirectoryURL.lastPathComponent
@@ -449,10 +513,27 @@ private func petDefaults() -> UserDefaults {
 
 private struct RuntimeError: Error, CustomStringConvertible {
     let description: String
+    let alertTitle: String
 
-    init(_ description: String) {
+    init(_ description: String, alertTitle: String = "Could Not Start LightPet") {
         self.description = description
+        self.alertTitle = alertTitle
     }
+}
+
+private func noPetsFoundError(libraryURL: URL) -> RuntimeError {
+    RuntimeError(
+        "No valid pets were found in \(libraryURL.path).\n\nAdd a pet folder under \(libraryURL.path)/<pet-id>/ containing pet.json and spritesheet.webp, then launch LightPet again.",
+        alertTitle: "No Pets Found"
+    )
+}
+
+private func noLoadablePetsError(libraryURL: URL, underlyingError: Error?) -> RuntimeError {
+    let detail = underlyingError.map { "\n\nLast load error: \($0)" } ?? ""
+    return RuntimeError(
+        "No loadable pets were found in \(libraryURL.path).\n\nAdd a pet folder under \(libraryURL.path)/<pet-id>/ containing a valid pet.json and spritesheet.webp, then launch LightPet again.\(detail)",
+        alertTitle: "No Loadable Pets"
+    )
 }
 
 @MainActor
@@ -871,7 +952,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        rememberWorkspacePet(package: currentPackage)
+        rememberCodexPet(package: currentPackage)
 
         let size = NSSize(width: CGFloat(cellWidth) * currentScale, height: CGFloat(cellHeight) * currentScale)
         let panel = PetPanel(
@@ -1036,7 +1117,7 @@ extension AppDelegate: PetAnimationViewMenuDelegate {
 
     private func switchPet(to package: PetPackage, view: PetAnimationView) {
         currentPackage = package
-        rememberWorkspacePet(package: package)
+        rememberCodexPet(package: package)
         panel?.title = package.manifest.displayName
         view.updatePackage(package)
         print("LightPetDesktop switched to \(package.manifest.displayName) from \(package.manifestURL.path)")
@@ -1112,6 +1193,19 @@ private func visibleScreenUnion() -> NSRect {
     return union
 }
 
+@MainActor
+private func showFatalStartupError(_ error: Error) {
+    let app = NSApplication.shared
+    app.setActivationPolicy(.regular)
+    app.activate(ignoringOtherApps: true)
+
+    let alert = NSAlert()
+    alert.messageText = (error as? RuntimeError)?.alertTitle ?? "Could Not Start LightPet"
+    alert.informativeText = "\(error)"
+    alert.alertStyle = .warning
+    alert.runModal()
+}
+
 private var strongAppDelegate: AppDelegate?
 
 do {
@@ -1131,5 +1225,10 @@ do {
     exit(2)
 } catch {
     fputs("LightPetDesktop error: \(error)\n", stderr)
+    Task { @MainActor in
+        showFatalStartupError(error)
+        exit(1)
+    }
+    RunLoop.main.run()
     exit(1)
 }

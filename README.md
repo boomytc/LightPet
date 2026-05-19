@@ -48,21 +48,25 @@ swift run LightPetDesktop --scale 1
 
 ```text
 --pet path/to/pet.json  精确的宠物清单路径
---pet-id pet-id         未提供 --pet 时优先尝试的工作区宠物键
+--pet-id pet-id         未提供 --pet 时优先尝试的 Codex 宠物键
 ```
 
-未提供 `--pet` 时，桌面包装器按顺序尝试 `--pet-id`、上一次成功选择的工作区宠物、当前工作区 `pets/` 下排序后的首个可发现宠物。若某个记录的宠物文件夹已被删除，会自动落到首个可发现宠物。
+未提供 `--pet` 时，桌面包装器读取与 Codex 相同的宠物目录：`${CODEX_HOME:-$HOME/.codex}/pets`。它会按顺序尝试 `--pet-id`、上一次成功选择的 Codex 宠物、该目录下排序后的首个可发现宠物。若某个记录的宠物文件夹已被删除，会自动落到首个可发现宠物。
 
-右键 `Pet` 菜单会轻量列出当前工作区 `pets/*/pet.json` 下发现的候选包。菜单打开时只读取清单并确认精灵表文件存在，避免在右键路径里同步解码每个 WebP；选择某个宠物时才会执行完整的精灵表尺寸、已用帧数以及未用单元格透明度验证。菜单还包含 `Choose Pet Folder...`，允许你选择任何包含以下精确配对的文件夹：
+如果 `${CODEX_HOME:-$HOME/.codex}/pets` 不存在，LightPet 会在启动时自动创建它。如果目录存在但没有任何有效宠物，或者目录路径被普通文件占用，桌面启动会弹窗提示需要放入宠物文件夹或修正目录。
+
+如果上一次选择或 `--pet-id` 指向的宠物包存在但加载失败，非 `--pet` 精确路径启动会继续尝试下一个可发现的 Codex 宠物；只有所有候选都不可加载时才弹窗。
+
+右键 `Pet` 菜单会轻量列出 `${CODEX_HOME:-$HOME/.codex}/pets/*/pet.json` 下发现的候选包。菜单打开时只读取清单并确认精灵表文件存在，避免在右键路径里同步解码每个 WebP；选择某个宠物时才会执行完整的精灵表尺寸、已用帧数以及未用单元格透明度验证。菜单还包含 `Choose Pet Folder...`，允许你选择任何包含以下精确配对的文件夹：
 
 ```text
 pet.json
 spritesheet.webp
 ```
 
-要让宠物在每次启动时都出现在菜单中，请将文件夹放在工作区的 `pets/<pet-id>/` 下。这样复制、删除和清理冗余宠物都只发生在项目目录里。
+要让宠物在每次启动时都出现在菜单中，请将文件夹放在 `${CODEX_HOME:-$HOME/.codex}/pets/<pet-id>/` 下。安装了 Codex 的机器会复用同一份宠物；没有 Codex 的机器也可以使用同一个目录约定，不需要再维护 LightPet 专属副本。
 
-从工作区 `pets/<pet-id>/` 成功启动或右键切换后，LightPet 会记住这个 `pet-id` 作为下次默认选择。`Choose Pet Folder...` 仅在当前运行中加载所选文件夹；它不会复制、安装、修改宠物文件，也不会把工作区外的文件夹写成默认宠物。
+从 Codex 宠物目录成功启动或右键切换后，LightPet 会记住这个 `pet-id` 作为下次默认选择。`Choose Pet Folder...` 仅在当前运行中加载所选文件夹；它不会复制、安装、修改宠物文件，也不会把 Codex 宠物目录外的文件夹写成默认宠物。
 
 尺寸冒烟测试：
 
@@ -85,7 +89,7 @@ swift run LightPetDesktop --show-dock --resize-smoke-test
 ## 文件契约
 
 ```text
-pets/<pet-id>/
+${CODEX_HOME:-$HOME/.codex}/pets/<pet-id>/
 ├── pet.json
 └── spritesheet.webp
 ```
