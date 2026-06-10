@@ -153,7 +153,7 @@ async function setPetPackage(manifest, manifestPath) {
   manifestJson.textContent = JSON.stringify(manifest, null, 2);
   atlasImage.src = activeSheetUrl;
   rowStripFile.value = "";
-  overrideStatus.textContent = "Load a generated strip to preview one row without writing package files.";
+  overrideStatus.textContent = "Preview one generated strip only. Use hatch-pet for generation, repair, QA, and package promotion.";
 
   refreshAtlasState();
 }
@@ -215,20 +215,21 @@ function validateAtlas(canvas) {
         CELL_WIDTH,
         CELL_HEIGHT,
       );
-      const nontransparentPixels = countVisiblePixels(imageData.data);
-      const cell = { state: row.state, row: row.row, column, used, nontransparentPixels, ok: true };
+      const visiblePixels = countVisiblePixels(imageData.data);
+      const nonzeroAlphaPixels = countNonzeroAlphaPixels(imageData.data);
+      const cell = { state: row.state, row: row.row, column, used, visiblePixels, nonzeroAlphaPixels, ok: true };
 
       if (used) {
         result.usedCells += 1;
-        if (nontransparentPixels <= 50) {
+        if (visiblePixels <= 50) {
           cell.ok = false;
           result.emptyUsedCells += 1;
           result.errors.push(`${row.state} frame ${column + 1} is empty or too sparse.`);
         }
-      } else if (nontransparentPixels > 0) {
+      } else if (nonzeroAlphaPixels > 0) {
         cell.ok = false;
         result.nontransparentUnusedCells += 1;
-        result.errors.push(`${row.state} unused cell ${column + 1} is not transparent.`);
+        result.errors.push(`${row.state} unused cell ${column + 1} is not fully transparent.`);
       }
 
       result.cells.push(cell);
@@ -243,6 +244,16 @@ function countVisiblePixels(data) {
   let count = 0;
   for (let index = 3; index < data.length; index += 4) {
     if (data[index] > VISIBLE_ALPHA_THRESHOLD) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+function countNonzeroAlphaPixels(data) {
+  let count = 0;
+  for (let index = 3; index < data.length; index += 4) {
+    if (data[index] !== 0) {
       count += 1;
     }
   }
@@ -308,6 +319,12 @@ function renderRowReview() {
     return;
   }
 
+  if (qaData.cells.length !== animationRows.length * ATLAS_COLUMNS) {
+    rowReview.textContent = "";
+    rowReviewMeta.textContent = "row review unavailable until atlas dimensions match";
+    return;
+  }
+
   rowReviewMeta.textContent = "click a frame to inspect it";
   rowReview.replaceChildren(
     ...animationRows.map((row) => {
@@ -332,8 +349,8 @@ function renderRowReview() {
         tile.type = "button";
         tile.disabled = !cell.used;
         tile.title = cell.used
-          ? `${row.state} frame ${column + 1}: ${cell.nontransparentPixels} visible pixels`
-          : `${row.state} unused cell ${column + 1}: ${cell.nontransparentPixels} visible pixels`;
+          ? `${row.state} frame ${column + 1}: ${cell.visiblePixels} visible pixels`
+          : `${row.state} unused cell ${column + 1}: ${cell.nonzeroAlphaPixels} nonzero alpha pixels`;
 
         const thumb = document.createElement("span");
         thumb.className = `frame-thumb ${rendering === "smooth" ? "smooth" : ""}`;
@@ -450,7 +467,7 @@ async function applyRowOverride(file, state) {
     activeRow = row;
     frameIndex = 0;
     playing = false;
-    overrideStatus.textContent = `Previewing ${file.name} as ${state}. This only changes the browser preview.`;
+    overrideStatus.textContent = `Previewing ${file.name} as ${state}. Browser-only preview; use hatch-pet to generate, repair, validate, and promote package files.`;
     refreshAtlasState();
   } finally {
     URL.revokeObjectURL(sourceUrl);

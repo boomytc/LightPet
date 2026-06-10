@@ -82,9 +82,9 @@ final class PetFrameStore {
 
             for column in row.frameCount..<atlasColumns {
                 let frame = try Self.makeFrame(atlas: atlas, row: row.row, column: column)
-                let nontransparentPixels = frame.alpha.filter { $0 > visibleAlphaThreshold }.count
-                guard nontransparentPixels == 0 else {
-                    throw RuntimeError("\(row.state) unused column \(column) is not transparent.")
+                let nonzeroAlphaPixels = frame.alpha.filter { $0 != 0 }.count
+                guard nonzeroAlphaPixels == 0 else {
+                    throw RuntimeError("\(row.state) unused column \(column) is not fully transparent.")
                 }
             }
 
@@ -394,8 +394,6 @@ func petManifestURLs(in root: URL) -> [URL] {
 }
 
 func resolveManifestURL(options: LaunchOptions) throws -> URL {
-    let libraryURL = try ensureCodexPetLibraryExists()
-
     if let manifestPath = options.manifestPath {
         let manifestURL = fileURL(from: manifestPath)
         guard FileManager.default.fileExists(atPath: manifestURL.path) else {
@@ -403,6 +401,8 @@ func resolveManifestURL(options: LaunchOptions) throws -> URL {
         }
         return manifestURL
     }
+
+    let libraryURL = try ensureCodexPetLibraryExists()
 
     if let petID = options.petID ?? lastCodexPetID() {
         let manifestURL = codexPetManifestURL(petID: petID)

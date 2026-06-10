@@ -55,8 +55,10 @@ Do not fabricate row strips with local drawing scripts, SVG, CSS, or Pillow as a
 Web preview:
 
 ```bash
-python3 -m http.server 18091 --directory preview/web
+python3 -m http.server 18091 --directory .
 ```
+
+Open `http://127.0.0.1:18091/preview/web/`.
 
 Desktop runtime:
 

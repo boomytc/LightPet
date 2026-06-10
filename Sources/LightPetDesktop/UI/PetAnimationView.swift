@@ -10,7 +10,12 @@ final class PetStateController {
     private var transientTimer: Timer?
     private var pressTimer: Timer?
     private var didLongPress = false
-    var onStateChange: ((String) -> Void)?
+    private var currentState: String?
+    var onStateChange: ((String, Bool) -> Void)?
+
+    func resetCurrentState(to state: String) {
+        currentState = state
+    }
 
     func updatePointerPresence(insideVisibleSprite: Bool) {
         pointerInsideVisibleSprite = insideVisibleSprite
@@ -69,7 +74,7 @@ final class PetStateController {
     private func playTransient(_ state: String, duration: TimeInterval) {
         stopTransient()
         cancelPressTimer()
-        emit(state)
+        emit(state, replay: true)
         let timer = Timer(timeInterval: duration, repeats: false) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self else {
@@ -96,8 +101,12 @@ final class PetStateController {
         pressTimer = nil
     }
 
-    private func emit(_ state: String) {
-        onStateChange?(state)
+    private func emit(_ state: String, replay: Bool = false) {
+        guard replay || currentState != state else {
+            return
+        }
+        currentState = state
+        onStateChange?(state, replay)
     }
 }
 
@@ -140,8 +149,8 @@ final class PetAnimationView: NSView {
         super.init(frame: .zero)
         wantsLayer = true
         layer?.backgroundColor = NSColor.clear.cgColor
-        stateController.onStateChange = { [weak self] state in
-            self?.setState(state)
+        stateController.onStateChange = { [weak self] state, replay in
+            self?.setState(state, replay: replay)
         }
         startTimer()
     }
@@ -164,6 +173,7 @@ final class PetAnimationView: NSView {
         window?.title = package.manifest.displayName
         needsDisplay = true
         startTimer()
+        stateController.resetCurrentState(to: activeRow.state)
         stateController.updatePointerPresence(insideVisibleSprite: containsVisiblePixel(screenPoint: NSEvent.mouseLocation))
     }
 
@@ -220,19 +230,15 @@ final class PetAnimationView: NSView {
         package.frames.frame(for: activeRow, index: frameIndex)
     }
 
-    private func setState(_ state: String, resetFrame: Bool = true) {
+    private func setState(_ state: String, replay: Bool = false) {
         guard let row = rowByState[state] else {
             return
         }
-        guard row.state != activeRow.state || resetFrame else {
+        guard row.state != activeRow.state || replay else {
             return
         }
         activeRow = row
-        if resetFrame {
-            frameIndex = 0
-        } else {
-            frameIndex = min(frameIndex, row.frameCount - 1)
-        }
+        frameIndex = 0
         needsDisplay = true
         startTimer()
     }
