@@ -1,0 +1,51 @@
+{
+  "runStatus": "example-only",
+  "jobs": [
+    {
+      "id": "base",
+      "kind": "base-pet",
+      "prompt": "prompts/base-pet.md",
+      "inputs": [],
+      "output": "decoded/base.png",
+      "status": "pending"
+    },
+    {
+      "id": "idle",
+      "kind": "row-strip",
+      "state": "idle",
+      "prompt": "prompts/rows/idle.md",
+      "inputs": [
+        {
+          "role": "canonical-base",
+          "path": "references/canonical-base.png"
+        },
+        {
+          "role": "layout-guide",
+          "path": "references/layout-guides/idle.png"
+        }
+      ],
+      "output": "decoded/idle.png",
+      "status": "pending"
+    },
+    {
+      "id": "running-right",
+      "kind": "row-strip",
+      "state": "running-right",
+      "prompt": "prompts/rows/running-right.md",
+      "inputs": [
+        {
+          "role": "canonical-base",
+          "path": "references/canonical-base.png"
+        },
+        {
+          "role": "layout-guide",
+          "path": "references/layout-guides/running-right.png"
+        }
+      ],
+      "output": "decoded/running-right.png",
+      "status": "pending"
+    }
+  ],
+  "note": "A real hatch-pet imagegen-jobs.json contains all row jobs and source provenance for selected generated images."
+}
+

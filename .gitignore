@@ -13,4 +13,4 @@ output/
 dist/
 .vscode/
 .pet-runs/
-**/.pet-runs/
+products/**/.pet-runs/

@@ -1,0 +1,35 @@
+{
+  "petName": "Lulu",
+  "packageId": "lulu",
+  "description": "A calm capybara desktop pet for LightPet.",
+  "rendering": "smooth",
+  "runtimeContract": {
+    "manifest": "pet.json",
+    "spritesheet": "spritesheet.webp",
+    "atlas": {
+      "width": 1536,
+      "height": 1872,
+      "columns": 8,
+      "rows": 9,
+      "cellWidth": 192,
+      "cellHeight": 208
+    },
+    "states": [
+      "idle",
+      "running-right",
+      "running-left",
+      "waving",
+      "jumping",
+      "failed",
+      "waiting",
+      "running",
+      "review"
+    ]
+  },
+  "notes": [
+    "Use hatch-pet for base art, row prompts, image generation, frame extraction, validation, QA contact sheets, and final packaging.",
+    "Do not draw or fabricate animation rows with local scripts.",
+    "Promote only pet.json and spritesheet.webp into products/*/examples/pets/<pet-id>/."
+  ]
+}
+
