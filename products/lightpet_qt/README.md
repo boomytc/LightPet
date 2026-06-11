@@ -1,6 +1,6 @@
-# LightPet PySide6
+# LightPet Qt
 
-`products/lightpet_pyside6/` is a standalone PySide6 desktop runtime for
+`products/lightpet_qt/` is a standalone PySide6/Qt desktop runtime for
 Codex-compatible LightPet packages. It loads existing `pet.json` plus
 `spritesheet.webp` folders, validates the fixed atlas contract, and plays the pet
 as a transparent always-on-top desktop widget.
@@ -32,7 +32,7 @@ make run
 Direct CLI usage:
 
 ```bash
-PYTHONPATH=src .venv/bin/python -m lightpet_pyside6 \
+PYTHONPATH=src .venv/bin/python -m lightpet_qt \
   --pet examples/pets/lulu/pet.json \
   --scale 1
 ```
@@ -56,7 +56,7 @@ make test
 ```
 
 `make validate-contract` loads `docs/pet-animation-contract.json`, verifies the
-PySide6 runtime can consume it, and validates the bundled example spritesheet.
+PySide6/Qt runtime can consume it, and validates the bundled example spritesheet.
 
 ## Package Contract
 

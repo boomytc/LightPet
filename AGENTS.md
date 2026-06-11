@@ -4,7 +4,7 @@
 
 LightPet is organized as a product workspace. The repository root is not a runtime product and should only keep cross-product instructions, aggregate commands, and workspace metadata.
 
-The current product lives at `products/lightpet_runtime/`. Treat that directory as the standalone product root before editing, running, testing, packaging, or debugging the app.
+The default native product lives at `products/lightpet_macos/`. Treat any product directory as the standalone product root before editing, running, testing, packaging, or debugging that app.
 
 ## Product Rules
 
@@ -16,8 +16,8 @@ The current product lives at `products/lightpet_runtime/`. Treat that directory 
 
 ## Products
 
-- `products/lightpet_runtime/`: Codex-compatible desktop pet runtime, native macOS wrapper, static Web preview, runtime examples, prompt contracts, and deterministic validation scripts.
-- `products/lightpet_pyside6/`: PySide6 desktop runtime for the same Codex-compatible pet package contract.
+- `products/lightpet_macos/`: Swift/AppKit native macOS runtime, static Web preview, runtime examples, prompt contracts, and deterministic validation scripts.
+- `products/lightpet_qt/`: PySide6/Qt desktop runtime for the same Codex-compatible pet package contract.
 
 ## Runtime Contract
 
@@ -29,13 +29,13 @@ The current LightPet runtime contract is intentionally fixed:
 - cell: `192x208`
 - states: `idle`, `running-right`, `running-left`, `waving`, `jumping`, `failed`, `waiting`, `running`, `review`
 
-The machine-readable contract is product-local at `products/lightpet_runtime/docs/pet-animation-contract.json`.
+The machine-readable contract is product-local at `products/lightpet_macos/docs/pet-animation-contract.json`.
 
 For Codex compatibility, adding a new action to an existing pet means regenerating or replacing one of these rows. True extra states need a manifest/runtime design first; do not quietly add extra rows or files that the current runtime cannot play.
 
 ## Development Commands
 
-From the repository root:
+From the repository root, macOS product commands:
 
 ```bash
 make validate-contract
@@ -45,8 +45,8 @@ make package-app
 make clean
 ```
 
-Direct product commands should run from `products/lightpet_runtime/` and follow that directory's `AGENTS.md`.
-For the PySide6 product, run commands from `products/lightpet_pyside6/` and follow that directory's `AGENTS.md`.
+Direct product commands should run from `products/lightpet_macos/` and follow that directory's `AGENTS.md`.
+For the Qt product, run commands from `products/lightpet_qt/` and follow that directory's `AGENTS.md`.
 
 ## Cleanup
 

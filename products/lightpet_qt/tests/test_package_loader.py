@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import unittest
 
-from lightpet_pyside6.contract import DEFAULT_CONTRACT_PATH, load_animation_contract
-from lightpet_pyside6.package_loader import load_pet_package
+from lightpet_qt.contract import DEFAULT_CONTRACT_PATH, load_animation_contract
+from lightpet_qt.package_loader import load_pet_package
 
 
 class PackageLoaderTests(unittest.TestCase):

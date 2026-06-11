@@ -67,7 +67,7 @@ def main(argv: list[str] | None = None) -> int:
     window.show()
     window.raise_()
 
-    print(f"LightPetPySide6 loaded {package.manifest.display_name} from {package.manifest_path}")
+    print(f"LightPetQt loaded {package.manifest.display_name} from {package.manifest_path}")
     print("Mouse-only states: hover=waiting, click=failed, hold=waving, drag=left/right/up/down.")
 
     if args.resize_smoke_test:
@@ -78,8 +78,8 @@ def main(argv: list[str] | None = None) -> int:
 
 def _parse_args(argv: list[str]) -> LaunchOptions:
     parser = argparse.ArgumentParser(
-        prog="lightpet-pyside6",
-        description="PySide6 desktop runtime for Codex-compatible LightPet packages.",
+        prog="lightpet-qt",
+        description="PySide6/Qt desktop runtime for Codex-compatible LightPet packages.",
     )
     parser.add_argument("--pet", dest="manifest_path", type=Path, help="Exact pet.json path.")
     parser.add_argument("--pet-id", help="Codex pet id to try when --pet is not provided.")
@@ -107,4 +107,3 @@ def _parse_args(argv: list[str]) -> LaunchOptions:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

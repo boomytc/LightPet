@@ -1,14 +1,14 @@
 [project]
-name = "lightpet-pyside6"
+name = "lightpet-qt"
 version = "0.1.0"
-description = "PySide6 desktop runtime for Codex-compatible LightPet packages."
+description = "PySide6/Qt desktop runtime for Codex-compatible LightPet packages."
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "PySide6>=6.8,<7",
 ]
 
 [project.scripts]
-lightpet-pyside6 = "lightpet_pyside6.cli:main"
+lightpet-qt = "lightpet_qt.cli:main"
 
 [build-system]
 requires = ["setuptools>=68"]
@@ -16,4 +16,3 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-

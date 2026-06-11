@@ -180,7 +180,7 @@ class PetWindow(QWidget):
         self._start_timer()
         self.update()
         self._route_pointer_presence()
-        print(f"LightPetPySide6 switched to {package.manifest.display_name} from {package.manifest_path}")
+        print(f"LightPetQt switched to {package.manifest.display_name} from {package.manifest_path}")
 
     def run_resize_smoke_test(self) -> None:
         scales = list(AVAILABLE_SCALES)

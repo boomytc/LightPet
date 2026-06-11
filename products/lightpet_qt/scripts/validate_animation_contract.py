@@ -8,8 +8,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from lightpet_pyside6.contract import load_animation_contract  # noqa: E402
-from lightpet_pyside6.package_loader import load_pet_package  # noqa: E402
+from lightpet_qt.contract import load_animation_contract  # noqa: E402
+from lightpet_qt.package_loader import load_pet_package  # noqa: E402
 
 
 EXPECTED_STATES = (
@@ -38,7 +38,7 @@ def main() -> int:
             print(f"error: {row.state} frame store mismatch", file=sys.stderr)
             return 1
 
-    print("Animation contract matches PySide6 runtime and bundled example package.")
+    print("Animation contract matches Qt runtime and bundled example package.")
     return 0
 
 

@@ -13,7 +13,7 @@ from .contract import AnimationContract, AnimationRow, MIN_VISIBLE_PIXELS, defau
 
 
 DEFAULTS_ORGANIZATION = "LightPet"
-DEFAULTS_APPLICATION = "LightPetPySide6"
+DEFAULTS_APPLICATION = "LightPetQt"
 LAST_CODEX_PET_ID_KEY = "lastCodexPetID"
 
 
@@ -234,7 +234,7 @@ def resolve_initial_manifest_path(
         if candidate.exists():
             return candidate
         print(
-            f"LightPetPySide6 warning: pet '{candidate_pet_id}' was not found under "
+            f"LightPetQt warning: pet '{candidate_pet_id}' was not found under "
             f"{library_path}; falling back to the first available Codex pet."
         )
 
@@ -266,7 +266,7 @@ def load_selected_pet_package(
         if manifest_path is not None:
             raise
         print(
-            f"LightPetPySide6 warning: pet at {selected_manifest} could not be loaded: "
+            f"LightPetQt warning: pet at {selected_manifest} could not be loaded: "
             "trying the next available Codex pet."
         )
         choices = [choice for choice in discover_pet_choices() if choice.manifest_path != selected_manifest]
@@ -276,7 +276,7 @@ def load_selected_pet_package(
                 return load_pet_package(choice.manifest_path, contract)
             except PetRuntimeError as fallback_error:
                 last_error = fallback_error
-                print(f"LightPetPySide6 warning: pet at {choice.manifest_path} could not be loaded.")
+                print(f"LightPetQt warning: pet at {choice.manifest_path} could not be loaded.")
         raise PetRuntimeError(
             f"No loadable pets were found in {codex_pet_library_path()}.\n\n"
             "Add a pet folder containing a valid pet.json and spritesheet.webp, "

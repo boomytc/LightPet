@@ -1,8 +1,8 @@
-# LightPet Runtime Development Guide
+# LightPet macOS Development Guide
 
 ## Product Boundary
 
-This directory is the standalone LightPet runtime product. Keep it focused on loading, validating, previewing, and playing existing Codex-compatible desktop pet packages.
+This directory is the standalone Swift/AppKit macOS runtime product. Keep it focused on loading, validating, previewing, and playing existing Codex-compatible desktop pet packages.
 
 Do not turn the Swift app or Web preview into the full pet-generation pipeline. Full image generation, row repair, and visual QA should continue to run through the Codex `hatch-pet` skill unless the user explicitly asks for a different product direction.
 
@@ -55,7 +55,7 @@ Do not fabricate row strips with local drawing scripts, SVG, CSS, or Pillow as a
 
 ## Development Commands
 
-Run commands from `products/lightpet_runtime/`.
+Run commands from `products/lightpet_macos/`.
 
 Web preview:
 

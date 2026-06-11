@@ -3,8 +3,8 @@
 LightPet is organized as a product workspace. Current products:
 
 ```text
-products/lightpet_runtime/   Swift/AppKit desktop runtime plus Web preview
-products/lightpet_pyside6/   PySide6 desktop runtime
+products/lightpet_macos/   Swift/AppKit native macOS runtime plus Web preview
+products/lightpet_qt/      PySide6/Qt desktop runtime
 ```
 
 Each product owns its runtime code, package metadata, docs, examples, scripts,
@@ -19,7 +19,7 @@ root Makefile targets that delegate into a product.
 ├── Makefile
 ├── products/
 │   ├── AGENTS.md
-│   ├── lightpet_runtime/
+│   ├── lightpet_macos/
 │   │   ├── AGENTS.md
 │   │   ├── Package.swift
 │   │   ├── Sources/
@@ -28,7 +28,7 @@ root Makefile targets that delegate into a product.
 │   │   ├── examples/
 │   │   ├── docs/
 │   │   └── scripts/
-│   └── lightpet_pyside6/
+│   └── lightpet_qt/
 │       ├── AGENTS.md
 │       ├── pyproject.toml
 │       ├── src/
@@ -49,25 +49,34 @@ make package-app
 make clean
 ```
 
-PySide6 product:
+Qt product:
 
 ```bash
-make pyside6-install
-make pyside6-validate
-make pyside6-test
-make pyside6-run-example
+make qt-install
+make qt-validate
+make qt-test
+make qt-run-example
 ```
 
 Equivalent direct product usage:
 
 ```bash
-cd products/lightpet_runtime
+cd products/lightpet_macos
 python3 scripts/validate_animation_contract.py
 swift build --product LightPetDesktop
 python3 -m http.server 18091 --directory .
 ```
 
+Equivalent direct Qt product usage:
+
+```bash
+cd products/lightpet_qt
+uv venv --python 3.12
+make install
+make run-example
+```
+
 Open the Web preview at `http://127.0.0.1:18091/preview/web/`.
 
-See `products/lightpet_runtime/README.md` for runtime behavior, pet package contract, and authoring notes.
-See `products/lightpet_pyside6/README.md` for the PySide6 runtime.
+See `products/lightpet_macos/README.md` for runtime behavior, pet package contract, and authoring notes.
+See `products/lightpet_qt/README.md` for the Qt runtime.

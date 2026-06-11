@@ -1,8 +1,8 @@
-# LightPet PySide6 Development Guide
+# LightPet Qt Development Guide
 
 ## Product Boundary
 
-This directory is the standalone PySide6 desktop runtime product for LightPet.
+This directory is the standalone PySide6/Qt desktop runtime product for LightPet.
 Keep it focused on loading, validating, previewing, and playing existing
 Codex-compatible desktop pet packages.
 
@@ -37,12 +37,12 @@ The repository intentionally does not commit `.venv/`.
 
 ## Code Layout
 
-- `src/lightpet_pyside6/contract.py`: animation contract parsing and validation.
-- `src/lightpet_pyside6/package_loader.py`: manifest loading, pet discovery,
+- `src/lightpet_qt/contract.py`: animation contract parsing and validation.
+- `src/lightpet_qt/package_loader.py`: manifest loading, pet discovery,
   spritesheet validation, frame extraction, and alpha maps.
-- `src/lightpet_pyside6/pet_window.py`: transparent desktop pet QWidget,
+- `src/lightpet_qt/pet_window.py`: transparent desktop pet QWidget,
   animation timers, mouse interaction, context menu, and resize smoke test.
-- `src/lightpet_pyside6/cli.py`: command-line entrypoint.
+- `src/lightpet_qt/cli.py`: command-line entrypoint.
 - `docs/`: product-local runtime contract.
 - `examples/pets/`: committed runtime packages that users can load directly.
 - `scripts/`: product-local validation scripts.
@@ -50,7 +50,7 @@ The repository intentionally does not commit `.venv/`.
 
 ## Development Commands
 
-Run commands from `products/lightpet_pyside6/`.
+Run commands from `products/lightpet_qt/`.
 
 ```bash
 make venv
@@ -65,7 +65,7 @@ make clean
 ## Change Guidance
 
 - Keep this product independent from sibling products at runtime.
-- Do not read `products/lightpet_runtime/` from runtime code.
+- Do not read `products/lightpet_macos/` from runtime code.
 - If atlas geometry, state names, frame counts, or durations change, update this
   product's contract and validation/test coverage together.
 - Keep `examples/pets/<id>/` to the runtime package surface unless the user asks

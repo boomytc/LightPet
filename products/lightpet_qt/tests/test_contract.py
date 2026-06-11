@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 import unittest
 
-from lightpet_pyside6.contract import DEFAULT_CONTRACT_PATH, load_animation_contract
+from lightpet_qt.contract import DEFAULT_CONTRACT_PATH, load_animation_contract
 
 
 class AnimationContractTests(unittest.TestCase):
@@ -20,7 +20,7 @@ class AnimationContractTests(unittest.TestCase):
     def test_contract_is_product_local(self) -> None:
         contract_path = Path(DEFAULT_CONTRACT_PATH)
 
-        self.assertEqual(contract_path.parts[-3:], ("lightpet_pyside6", "docs", "pet-animation-contract.json"))
+        self.assertEqual(contract_path.parts[-3:], ("lightpet_qt", "docs", "pet-animation-contract.json"))
 
 
 if __name__ == "__main__":

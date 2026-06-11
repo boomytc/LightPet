@@ -1,8 +1,8 @@
-# LightPet
+# LightPet macOS
 
-LightPet 是一个兼容 Codex 的桌面宠物包的本地运行时。它的边界被刻意收窄：解析已有的宠物文件，验证固定的精灵表（spritesheet）契约，并将宠物呈现为原生的 macOS 桌面悬浮层。
+LightPet macOS 是一个兼容 Codex 的桌面宠物包的 Swift/AppKit 原生 macOS 运行时。它的边界被刻意收窄：解析已有的宠物文件，验证固定的精灵表（spritesheet）契约，并将宠物呈现为原生的 macOS 桌面悬浮层。
 
-本 README 假设命令从产品根目录 `products/lightpet_runtime/` 执行。该目录拥有自己的 SwiftPM 包、脚本、文档、示例、预览页面和打包产物。
+本 README 假设命令从产品根目录 `products/lightpet_macos/` 执行。该目录拥有自己的 SwiftPM 包、脚本、文档、示例、预览页面和打包产物。
 
 超出范围：
 
