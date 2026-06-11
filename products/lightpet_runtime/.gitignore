@@ -4,6 +4,4 @@
 .playwright-cli/
 output/
 dist/
-.vscode/
 .pet-runs/
-**/.pet-runs/
