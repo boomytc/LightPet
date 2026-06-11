@@ -1,6 +1,13 @@
 .DS_Store
 .build/
 .swiftpm/
+.venv/
+**/.venv/
+.uv-cache/
+**/.uv-cache/
+__pycache__/
+*.pyc
+*.egg-info/
 .playwright-cli/
 output/
 dist/

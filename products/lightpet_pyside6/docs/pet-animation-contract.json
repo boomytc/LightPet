@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 1,
+  "atlas": {
+    "columns": 8,
+    "rows": 9,
+    "cellWidth": 192,
+    "cellHeight": 208,
+    "visibleAlphaThreshold": 16
+  },
+  "states": [
+    {
+      "state": "idle",
+      "row": 0,
+      "frames": 6,
+      "durationsMs": [280, 110, 110, 140, 140, 320],
+      "purpose": "calm idle loop",
+      "mouseMapping": "Used when the pointer is outside the visible sprite and no transient interaction is active.",
+      "authoringNotes": [
+        "Neutral breathing or blinking loop.",
+        "Keep motion subtle; this is the reduced-motion safe row."
+      ]
+    },
+    {
+      "state": "running-right",
+      "row": 1,
+      "frames": 8,
+      "durationsMs": [120, 120, 120, 120, 120, 120, 120, 220],
+      "purpose": "drag or move right",
+      "mouseMapping": "Used while dragging the desktop pet mostly to the right.",
+      "authoringNotes": [
+        "Show rightward drag or locomotion.",
+        "Use body, limb, and prop movement only; no speed lines, dust, shadows, or trails."
+      ]
+    },
+    {
+      "state": "running-left",
+      "row": 2,
+      "frames": 8,
+      "durationsMs": [120, 120, 120, 120, 120, 120, 120, 220],
+      "purpose": "drag or move left",
+      "mouseMapping": "Used while dragging the desktop pet mostly to the left.",
+      "authoringNotes": [
+        "Show leftward drag or locomotion.",
+        "Mirror running-right only when markings, props, handedness, and direction semantics stay correct."
+      ]
+    },
+    {
+      "state": "waving",
+      "row": 3,
+      "frames": 4,
+      "durationsMs": [140, 140, 140, 280],
+      "purpose": "long-press pose",
+      "mouseMapping": "Used after a short hold without dragging.",
+      "authoringNotes": [
+        "Show the gesture through paw pose only.",
+        "Do not draw wave marks, arcs, symbols, sparkles, or detached effects."
+      ]
+    },
+    {
+      "state": "jumping",
+      "row": 4,
+      "frames": 5,
+      "durationsMs": [140, 140, 140, 140, 280],
+      "purpose": "drag upward",
+      "mouseMapping": "Used while dragging the desktop pet mostly upward.",
+      "authoringNotes": [
+        "Show anticipation, lift, peak, descent, and settle.",
+        "Show vertical motion through pose and body position only; no shadows, dust, landing marks, bounce pads, or motion marks."
+      ]
+    },
+    {
+      "state": "failed",
+      "row": 5,
+      "frames": 8,
+      "durationsMs": [140, 140, 140, 140, 140, 140, 140, 240],
+      "purpose": "click reaction",
+      "mouseMapping": "Used as a transient reaction after a simple click.",
+      "authoringNotes": [
+        "Use slumped pose, sad eyes, drooping limbs, or lower body position.",
+        "Tears, smoke, or stars must be attached to the pet silhouette."
+      ]
+    },
+    {
+      "state": "waiting",
+      "row": 6,
+      "frames": 6,
+      "durationsMs": [150, 150, 150, 150, 150, 260],
+      "purpose": "hover-ready state",
+      "mouseMapping": "Used while the pointer is over visible pet pixels and no press or drag is active.",
+      "authoringNotes": [
+        "Attentive hover state.",
+        "Keep it ready and readable, distinct from idle but not a new identity."
+      ]
+    },
+    {
+      "state": "running",
+      "row": 7,
+      "frames": 6,
+      "durationsMs": [120, 120, 120, 120, 120, 220],
+      "purpose": "spare drag loop",
+      "mouseMapping": "Reserved compatible row; the current mouse runtime does not actively trigger it.",
+      "authoringNotes": [
+        "Spare neutral drag or in-place movement loop.",
+        "Keep valid even if the current mouse runtime does not actively trigger it."
+      ]
+    },
+    {
+      "state": "review",
+      "row": 8,
+      "frames": 6,
+      "durationsMs": [150, 150, 150, 150, 150, 280],
+      "purpose": "pressed or focused state",
+      "mouseMapping": "Used while dragging the desktop pet mostly downward.",
+      "authoringNotes": [
+        "Use lean, blink, narrowed eyes, head tilt, or paw position.",
+        "Avoid papers, code, UI, punctuation, or new props."
+      ]
+    }
+  ]
+}

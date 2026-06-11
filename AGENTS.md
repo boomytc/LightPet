@@ -14,9 +14,10 @@ The current product lives at `products/lightpet_runtime/`. Treat that directory 
 - Do not read sibling product directories at runtime.
 - Keep product environments independent. A product that needs dependencies must declare them under its own product root.
 
-## Current Product
+## Products
 
 - `products/lightpet_runtime/`: Codex-compatible desktop pet runtime, native macOS wrapper, static Web preview, runtime examples, prompt contracts, and deterministic validation scripts.
+- `products/lightpet_pyside6/`: PySide6 desktop runtime for the same Codex-compatible pet package contract.
 
 ## Runtime Contract
 
@@ -45,9 +46,10 @@ make clean
 ```
 
 Direct product commands should run from `products/lightpet_runtime/` and follow that directory's `AGENTS.md`.
+For the PySide6 product, run commands from `products/lightpet_pyside6/` and follow that directory's `AGENTS.md`.
 
 ## Cleanup
 
-- Do not commit `.build/`, `.swiftpm/`, `dist/`, `output/`, `.playwright-cli/`, `.pet-runs/`, or raw `$CODEX_HOME/generated_images` files.
+- Do not commit `.build/`, `.swiftpm/`, `.venv/`, `dist/`, `output`, `.playwright-cli/`, `.pet-runs/`, or raw `$CODEX_HOME/generated_images` files.
 - Do not commit `.pet-runs/` wholesale. Promote only deliberate examples or documentation fixtures.
 - Keep `examples/pets/<id>/` to the product runtime package surface unless the user asks to store authoring provenance there.
