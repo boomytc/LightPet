@@ -1,17 +1,6 @@
 import AppKit
 import Foundation
-
-func formatScale(_ scale: CGFloat) -> String {
-    let value = Double(scale)
-    if value.rounded() == value {
-        return String(Int(value))
-    }
-    return String(format: "%.2f", value).replacingOccurrences(of: #"0+$"#, with: "", options: .regularExpression)
-}
-
-func isAvailableScale(_ scale: CGFloat) -> Bool {
-    availableScales.contains { abs($0 - scale) < 0.001 }
-}
+import LightPetDesktopCore
 
 func defaultWindowOrigin(size: NSSize) -> NSPoint {
     let screenFrame = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)

@@ -1,6 +1,6 @@
 import Darwin
 import Foundation
-@testable import LightPetDesktop
+@testable import LightPetDesktopCore
 import XCTest
 
 final class PetRuntimeTests: XCTestCase {
@@ -44,10 +44,12 @@ final class PetRuntimeTests: XCTestCase {
                 .appendingPathComponent("alpha")
             try writeCanonicalPackageSurface(in: petDirectoryURL, id: "alpha", displayName: "Alpha")
 
-            let options = LaunchOptions(manifestPath: nil, petID: "missing")
-            let manifestURL = try resolveManifestURL(options: options)
+            try withTemporaryLastCodexPetID(nil) {
+                let options = LaunchOptions(manifestPath: nil, petID: "missing")
+                let manifestURL = try resolveManifestURL(options: options)
 
-            XCTAssertEqual(manifestURL, petDirectoryURL.appendingPathComponent("pet.json").standardizedFileURL)
+                XCTAssertEqual(manifestURL, petDirectoryURL.appendingPathComponent("pet.json").standardizedFileURL)
+            }
         }
     }
 
@@ -115,7 +117,7 @@ final class PetRuntimeTests: XCTestCase {
         ))
     }
 
-    func testLoadPetPackageFallsBackWhenRequestedPackageFailsSurfaceValidation() throws {
+    func testLoadPetWithFallbackSkipsRequestedPackageThatFailsSurfaceValidation() throws {
         try withTemporaryCodexHome { codexHomeURL in
             let petsURL = codexHomeURL.appendingPathComponent("pets")
             let brokenURL = petsURL.appendingPathComponent("broken")
@@ -129,13 +131,15 @@ final class PetRuntimeTests: XCTestCase {
 
             let validURL = petsURL.appendingPathComponent("valid")
             try writeCanonicalPackageSurface(in: validURL, id: "valid", displayName: "Valid")
-            try copyExampleSpritesheet(to: validURL.appendingPathComponent("spritesheet.webp"))
 
             let options = LaunchOptions(manifestPath: nil, petID: "broken")
-            let package = try loadPetPackage(options: options)
+            let manifestURL = try loadPetWithFallback(options: options) { manifestURL in
+                let manifest = try loadPetManifest(manifestURL: manifestURL)
+                _ = try validatePetPackageSurface(manifest: manifest, manifestURL: manifestURL)
+                return manifestURL
+            }
 
-            XCTAssertEqual(package.manifest.id, "valid")
-            XCTAssertEqual(package.manifestURL, validURL.appendingPathComponent("pet.json").standardizedFileURL)
+            XCTAssertEqual(manifestURL, validURL.appendingPathComponent("pet.json").standardizedFileURL)
         }
     }
 
@@ -177,10 +181,14 @@ final class PetRuntimeTests: XCTestCase {
         }
     }
 
-    private func withTemporaryLastCodexPetID(_ petID: String, body: () throws -> Void) throws {
+    private func withTemporaryLastCodexPetID(_ petID: String?, body: () throws -> Void) throws {
         let defaults = petDefaults()
         let previousPetID = defaults.string(forKey: lastCodexPetIDKey)
-        defaults.set(petID, forKey: lastCodexPetIDKey)
+        if let petID {
+            defaults.set(petID, forKey: lastCodexPetIDKey)
+        } else {
+            defaults.removeObject(forKey: lastCodexPetIDKey)
+        }
         defer {
             if let previousPetID {
                 defaults.set(previousPetID, forKey: lastCodexPetIDKey)
@@ -189,25 +197,6 @@ final class PetRuntimeTests: XCTestCase {
             }
         }
         try body()
-    }
-
-    private func productRoot() -> URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-    }
-
-    private func copyExampleSpritesheet(to destinationURL: URL) throws {
-        let sourceURL = productRoot()
-            .appendingPathComponent("examples")
-            .appendingPathComponent("pets")
-            .appendingPathComponent("lulu")
-            .appendingPathComponent("spritesheet.webp")
-        if FileManager.default.fileExists(atPath: destinationURL.path) {
-            try FileManager.default.removeItem(at: destinationURL)
-        }
-        try FileManager.default.copyItem(at: sourceURL, to: destinationURL)
     }
 
     private func writeCanonicalPackageSurface(

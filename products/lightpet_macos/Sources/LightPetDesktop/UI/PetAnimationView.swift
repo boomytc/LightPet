@@ -1,5 +1,7 @@
 import AppKit
 import Foundation
+import LightPetDesktopCore
+import LightPetDesktopRendering
 
 @MainActor
 final class PetStateController {
@@ -304,10 +306,11 @@ final class PetAnimationView: NSView {
         let sizeItem = NSMenuItem(title: "Size", action: nil, keyEquivalent: "")
         let sizeMenu = NSMenu()
         let currentScale = menuDelegate?.currentScale(for: self) ?? 1
-        for scale in availableScales {
-            let item = NSMenuItem(title: "\(formatScale(scale))x", action: #selector(selectScale(_:)), keyEquivalent: "")
+        for scaleValue in availableScales {
+            let scale = CGFloat(scaleValue)
+            let item = NSMenuItem(title: "\(formatScale(scaleValue))x", action: #selector(selectScale(_:)), keyEquivalent: "")
             item.target = self
-            item.representedObject = NSNumber(value: Double(scale))
+            item.representedObject = NSNumber(value: scaleValue)
             item.state = abs(scale - currentScale) < 0.001 ? .on : .off
             sizeMenu.addItem(item)
         }

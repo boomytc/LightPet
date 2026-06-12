@@ -1,160 +1,90 @@
-import AppKit
-import CoreGraphics
 import Darwin
 import Foundation
 
-let availableScales: [CGFloat] = [0.5, 0.75, 1, 1.25, 1.5]
-let defaultsSuiteName = "LightPetDesktop"
-let lastCodexPetIDKey = "lastCodexPetID"
-let requiredManifestFilename = "pet.json"
-let requiredSpritesheetFilename = "spritesheet.webp"
+package let availableScales: [Double] = [0.5, 0.75, 1, 1.25, 1.5]
+package let defaultsSuiteName = "LightPetDesktop"
+package let lastCodexPetIDKey = "lastCodexPetID"
+package let requiredManifestFilename = "pet.json"
+package let requiredSpritesheetFilename = "spritesheet.webp"
 
-struct AnimationRow {
-    let state: String
-    let row: Int
-    let frameCount: Int
-    let durations: [TimeInterval]
+package struct AnimationRow {
+    package let state: String
+    package let row: Int
+    package let frameCount: Int
+    package let durations: [TimeInterval]
 
-    var totalDuration: TimeInterval {
+    package var totalDuration: TimeInterval {
         durations.reduce(0, +)
     }
 }
 
-let rowByState = Dictionary(uniqueKeysWithValues: animationRows.map { ($0.state, $0) })
+package let rowByState = Dictionary(uniqueKeysWithValues: animationRows.map { ($0.state, $0) })
 
-struct PetManifest: Decodable {
-    let id: String
-    let displayName: String
-    let description: String
-    let spritesheetPath: String
-    let rendering: String?
+package struct PetManifest: Decodable {
+    package let id: String
+    package let displayName: String
+    package let description: String
+    package let spritesheetPath: String
+    package let rendering: String?
 
-    var usesSmoothRendering: Bool {
+    package init(
+        id: String,
+        displayName: String,
+        description: String,
+        spritesheetPath: String,
+        rendering: String?
+    ) {
+        self.id = id
+        self.displayName = displayName
+        self.description = description
+        self.spritesheetPath = spritesheetPath
+        self.rendering = rendering
+    }
+
+    package var usesSmoothRendering: Bool {
         rendering == "smooth"
     }
 }
 
-struct PetFrame {
-    let image: CGImage
-    let alpha: [UInt8]
+package struct PetChoice {
+    package let manifest: PetManifest
+    package let manifestURL: URL
 
-    func hasVisiblePixel(x: Int, y: Int) -> Bool {
-        guard x >= 0, x < cellWidth, y >= 0, y < cellHeight else {
-            return false
-        }
-        return alpha[y * cellWidth + x] > visibleAlphaThreshold
-    }
-}
-
-final class PetFrameStore {
-    private let framesByState: [String: [PetFrame]]
-
-    init(atlas: CGImage) throws {
-        var builtFrames: [String: [PetFrame]] = [:]
-
-        for row in animationRows {
-            var frames: [PetFrame] = []
-            for column in 0..<row.frameCount {
-                let frame = try Self.makeFrame(atlas: atlas, row: row.row, column: column)
-                let nontransparentPixels = frame.alpha.filter { $0 > visibleAlphaThreshold }.count
-                guard nontransparentPixels > 50 else {
-                    throw RuntimeError("\(row.state) column \(column) is empty or too sparse.")
-                }
-                frames.append(frame)
-            }
-
-            for column in row.frameCount..<atlasColumns {
-                let frame = try Self.makeFrame(atlas: atlas, row: row.row, column: column)
-                let nonzeroAlphaPixels = frame.alpha.filter { $0 != 0 }.count
-                guard nonzeroAlphaPixels == 0 else {
-                    throw RuntimeError("\(row.state) unused column \(column) is not fully transparent.")
-                }
-            }
-
-            builtFrames[row.state] = frames
-        }
-
-        framesByState = builtFrames
+    package init(manifest: PetManifest, manifestURL: URL) {
+        self.manifest = manifest
+        self.manifestURL = manifestURL
     }
 
-    func frame(for row: AnimationRow, index: Int) -> PetFrame {
-        guard let frames = framesByState[row.state], !frames.isEmpty else {
-            fatalError("Missing frames for \(row.state).")
-        }
-        return frames[index % frames.count]
-    }
-
-    private static func makeFrame(atlas: CGImage, row: Int, column: Int) throws -> PetFrame {
-        let sourceRect = CGRect(
-            x: column * cellWidth,
-            y: row * cellHeight,
-            width: cellWidth,
-            height: cellHeight
-        )
-        guard let image = atlas.cropping(to: sourceRect) else {
-            throw RuntimeError("Could not crop row \(row), column \(column).")
-        }
-        return PetFrame(image: image, alpha: try alphaMap(for: image))
-    }
-
-    private static func alphaMap(for image: CGImage) throws -> [UInt8] {
-        let bytesPerPixel = 4
-        let bytesPerRow = cellWidth * bytesPerPixel
-        let colorSpace = CGColorSpaceCreateDeviceRGB()
-        var pixels = [UInt8](repeating: 0, count: cellWidth * cellHeight * bytesPerPixel)
-
-        try pixels.withUnsafeMutableBytes { rawBuffer in
-            guard let baseAddress = rawBuffer.baseAddress else {
-                throw RuntimeError("Could not allocate frame alpha buffer.")
-            }
-            guard let context = CGContext(
-                data: baseAddress,
-                width: cellWidth,
-                height: cellHeight,
-                bitsPerComponent: 8,
-                bytesPerRow: bytesPerRow,
-                space: colorSpace,
-                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue
-            ) else {
-                throw RuntimeError("Could not create frame alpha context.")
-            }
-            context.clear(CGRect(x: 0, y: 0, width: cellWidth, height: cellHeight))
-            context.draw(image, in: CGRect(x: 0, y: 0, width: cellWidth, height: cellHeight))
-        }
-
-        var alpha = [UInt8](repeating: 0, count: cellWidth * cellHeight)
-        for index in 0..<alpha.count {
-            alpha[index] = pixels[index * bytesPerPixel + 3]
-        }
-        return alpha
-    }
-}
-
-struct PetPackage {
-    let manifest: PetManifest
-    let manifestURL: URL
-    let spritesheetURL: URL
-    let frames: PetFrameStore
-}
-
-struct PetChoice {
-    let manifest: PetManifest
-    let manifestURL: URL
-
-    var title: String {
+    package var title: String {
         manifest.displayName.isEmpty ? manifest.id : manifest.displayName
     }
 }
 
-struct LaunchOptions {
-    var manifestPath: String?
-    var petID: String?
-    var initialState = "idle"
-    var scale: CGFloat = 1
-    var showDock = false
-    var runResizeSmokeTest = false
+package struct LaunchOptions {
+    package var manifestPath: String?
+    package var petID: String?
+    package var initialState: String
+    package var scale: Double
+    package var showDock: Bool
+    package var runResizeSmokeTest: Bool
 
-    static func parse(arguments: [String]) throws -> LaunchOptions {
+    package init(
+        manifestPath: String? = nil,
+        petID: String? = nil,
+        initialState: String = "idle",
+        scale: Double = 1,
+        showDock: Bool = false,
+        runResizeSmokeTest: Bool = false
+    ) {
+        self.manifestPath = manifestPath
+        self.petID = petID
+        self.initialState = initialState
+        self.scale = scale
+        self.showDock = showDock
+        self.runResizeSmokeTest = runResizeSmokeTest
+    }
+
+    package static func parse(arguments: [String]) throws -> LaunchOptions {
         var options = LaunchOptions()
         var index = 1
 
@@ -179,11 +109,10 @@ struct LaunchOptions {
                 guard let value = Double(arguments[index]), value > 0 else {
                     throw LaunchError.invalidValue("--scale", arguments[index])
                 }
-                let scale = CGFloat(value)
-                guard isAvailableScale(scale) else {
+                guard isAvailableScale(value) else {
                     throw LaunchError.invalidValue("--scale", arguments[index])
                 }
-                options.scale = scale
+                options.scale = value
             case "--show-dock":
                 options.showDock = true
             case "--resize-smoke-test":
@@ -203,13 +132,13 @@ struct LaunchOptions {
     }
 }
 
-enum LaunchError: Error, CustomStringConvertible {
+package enum LaunchError: Error, CustomStringConvertible {
     case helpRequested
     case missingValue(String)
     case invalidValue(String, String)
     case unknownArgument(String)
 
-    var description: String {
+    package var description: String {
         switch self {
         case .helpRequested:
             return helpText
@@ -223,7 +152,7 @@ enum LaunchError: Error, CustomStringConvertible {
     }
 }
 
-let helpText = """
+package let helpText = """
 Usage:
   swift run LightPetDesktop [--pet path/to/pet.json] [--pet-id pet-id] [--state idle] [--scale 1] [--show-dock]
 
@@ -244,11 +173,11 @@ Sizes:
   0.5x, 0.75x, 1x, 1.25x, 1.5x
 """
 
-func loadPetPackage(options: LaunchOptions) throws -> PetPackage {
+package func loadPetWithFallback<Package>(options: LaunchOptions, loader: (URL) throws -> Package) throws -> Package {
     let manifestURL = try resolveManifestURL(options: options)
     var selectedLoadError: Error?
     do {
-        return try loadPetPackage(manifestURL: manifestURL)
+        return try loader(manifestURL)
     } catch {
         guard options.manifestPath == nil else {
             throw error
@@ -261,7 +190,7 @@ func loadPetPackage(options: LaunchOptions) throws -> PetPackage {
     var lastError = selectedLoadError
     for choice in choices {
         do {
-            return try loadPetPackage(manifestURL: choice.manifestURL)
+            return try loader(choice.manifestURL)
         } catch {
             lastError = error
             fputs("LightPetDesktop warning: pet at \(choice.manifestURL.path) could not be loaded: \(error).\n", stderr)
@@ -271,42 +200,7 @@ func loadPetPackage(options: LaunchOptions) throws -> PetPackage {
     throw noLoadablePetsError(libraryURL: codexPetLibraryURL(), underlyingError: lastError)
 }
 
-func loadPetPackage(directoryURL: URL) throws -> PetPackage {
-    let manifestURL = directoryURL.appendingPathComponent(requiredManifestFilename).standardizedFileURL
-    guard FileManager.default.fileExists(atPath: manifestURL.path) else {
-        throw RuntimeError("Selected folder must contain pet.json.")
-    }
-    let spritesheetURL = directoryURL.appendingPathComponent(requiredSpritesheetFilename).standardizedFileURL
-    guard FileManager.default.fileExists(atPath: spritesheetURL.path) else {
-        throw RuntimeError("Selected folder must contain spritesheet.webp.")
-    }
-    return try loadPetPackage(manifestURL: manifestURL)
-}
-
-func loadPetPackage(manifestURL: URL) throws -> PetPackage {
-    let manifest = try loadPetManifest(manifestURL: manifestURL)
-    let spritesheetURL = try validatePetPackageSurface(manifest: manifest, manifestURL: manifestURL)
-
-    guard let image = NSImage(contentsOf: spritesheetURL) else {
-        throw RuntimeError("Could not load spritesheet at \(spritesheetURL.path).")
-    }
-    var proposedRect = NSRect(origin: .zero, size: image.size)
-    guard let atlas = image.cgImage(forProposedRect: &proposedRect, context: nil, hints: nil) else {
-        throw RuntimeError("Could not decode spritesheet as CGImage at \(spritesheetURL.path).")
-    }
-    guard atlas.width == atlasWidth, atlas.height == atlasHeight else {
-        throw RuntimeError("Expected \(atlasWidth)x\(atlasHeight) spritesheet, got \(atlas.width)x\(atlas.height).")
-    }
-
-    return PetPackage(
-        manifest: manifest,
-        manifestURL: manifestURL,
-        spritesheetURL: spritesheetURL,
-        frames: try PetFrameStore(atlas: atlas)
-    )
-}
-
-func loadPetManifest(manifestURL: URL) throws -> PetManifest {
+package func loadPetManifest(manifestURL: URL) throws -> PetManifest {
     let data = try Data(contentsOf: manifestURL)
     let manifest = try JSONDecoder().decode(PetManifest.self, from: data)
     try validateRequiredManifestString(manifest.id, key: "id")
@@ -322,7 +216,7 @@ private func validateRequiredManifestString(_ value: String, key: String) throws
     }
 }
 
-func validatePetPackageSurface(manifest: PetManifest, manifestURL: URL) throws -> URL {
+package func validatePetPackageSurface(manifest: PetManifest, manifestURL: URL) throws -> URL {
     let standardizedManifestURL = manifestURL.standardizedFileURL
     guard standardizedManifestURL.lastPathComponent == requiredManifestFilename else {
         throw RuntimeError("Pet manifest path must be named pet.json.")
@@ -340,14 +234,14 @@ func validatePetPackageSurface(manifest: PetManifest, manifestURL: URL) throws -
     return spritesheetURL
 }
 
-func discoverPetChoices() -> [PetChoice] {
+package func discoverPetChoices() -> [PetChoice] {
     guard let libraryURL = try? ensureCodexPetLibraryExists() else {
         return []
     }
     return discoverPetChoices(in: libraryURL)
 }
 
-func discoverPetChoices(in libraryURL: URL) -> [PetChoice] {
+package func discoverPetChoices(in libraryURL: URL) -> [PetChoice] {
     var seenPaths = Set<String>()
     var choices: [PetChoice] = []
 
@@ -367,7 +261,7 @@ func discoverPetChoices(in libraryURL: URL) -> [PetChoice] {
     }
 }
 
-func petChoice(manifestURL: URL) -> PetChoice? {
+package func petChoice(manifestURL: URL) -> PetChoice? {
     guard
         let manifest = try? loadPetManifest(manifestURL: manifestURL),
         (try? validatePetPackageSurface(manifest: manifest, manifestURL: manifestURL)) != nil
@@ -380,7 +274,7 @@ func petChoice(manifestURL: URL) -> PetChoice? {
     return PetChoice(manifest: manifest, manifestURL: manifestURL)
 }
 
-func petManifestURLs(in root: URL) -> [URL] {
+package func petManifestURLs(in root: URL) -> [URL] {
     guard
         let entries = try? FileManager.default.contentsOfDirectory(
             at: root,
@@ -397,7 +291,7 @@ func petManifestURLs(in root: URL) -> [URL] {
     }
 }
 
-func resolveManifestURL(options: LaunchOptions) throws -> URL {
+package func resolveManifestURL(options: LaunchOptions) throws -> URL {
     if let manifestPath = options.manifestPath {
         let manifestURL = fileURL(from: manifestPath)
         guard FileManager.default.fileExists(atPath: manifestURL.path) else {
@@ -423,7 +317,7 @@ func resolveManifestURL(options: LaunchOptions) throws -> URL {
     throw noPetsFoundError(libraryURL: libraryURL)
 }
 
-func preferredCodexPetIDs(options: LaunchOptions) -> [String] {
+package func preferredCodexPetIDs(options: LaunchOptions) -> [String] {
     var petIDs: [String] = []
     var seen = Set<String>()
     for petID in [options.petID, lastCodexPetID()] {
@@ -435,7 +329,7 @@ func preferredCodexPetIDs(options: LaunchOptions) -> [String] {
     return petIDs
 }
 
-func fileURL(from path: String) -> URL {
+package func fileURL(from path: String) -> URL {
     let expanded = (path as NSString).expandingTildeInPath
     if expanded.hasPrefix("/") {
         return URL(fileURLWithPath: expanded).standardizedFileURL
@@ -446,13 +340,13 @@ func fileURL(from path: String) -> URL {
     ).standardizedFileURL
 }
 
-func codexPetLibraryURL() -> URL {
+package func codexPetLibraryURL() -> URL {
     codexHomeURL()
         .appendingPathComponent("pets")
         .standardizedFileURL
 }
 
-func ensureCodexPetLibraryExists() throws -> URL {
+package func ensureCodexPetLibraryExists() throws -> URL {
     let libraryURL = codexPetLibraryURL()
     var isDirectory: ObjCBool = false
     if FileManager.default.fileExists(atPath: libraryURL.path, isDirectory: &isDirectory) {
@@ -476,7 +370,7 @@ func ensureCodexPetLibraryExists() throws -> URL {
     }
 }
 
-func codexHomeURL() -> URL {
+package func codexHomeURL() -> URL {
     if let path = ProcessInfo.processInfo.environment["CODEX_HOME"], !path.isEmpty {
         return fileURL(from: path)
     }
@@ -485,25 +379,25 @@ func codexHomeURL() -> URL {
         .standardizedFileURL
 }
 
-func codexPetManifestURL(petID: String) -> URL {
+package func codexPetManifestURL(petID: String) -> URL {
     codexPetLibraryURL()
         .appendingPathComponent(petID)
         .appendingPathComponent(requiredManifestFilename)
         .standardizedFileURL
 }
 
-func lastCodexPetID() -> String? {
+package func lastCodexPetID() -> String? {
     petDefaults().string(forKey: lastCodexPetIDKey)
 }
 
-func rememberCodexPet(package: PetPackage) {
-    guard let petID = codexPetID(for: package.manifestURL) else {
+package func rememberCodexPet(manifestURL: URL) {
+    guard let petID = codexPetID(for: manifestURL) else {
         return
     }
     petDefaults().set(petID, forKey: lastCodexPetIDKey)
 }
 
-func codexPetID(for manifestURL: URL) -> String? {
+package func codexPetID(for manifestURL: URL) -> String? {
     let standardizedManifestURL = manifestURL.standardizedFileURL
     guard standardizedManifestURL.lastPathComponent == requiredManifestFilename else {
         return nil
@@ -516,28 +410,28 @@ func codexPetID(for manifestURL: URL) -> String? {
     return petDirectoryURL.lastPathComponent
 }
 
-func petDefaults() -> UserDefaults {
+package func petDefaults() -> UserDefaults {
     UserDefaults(suiteName: defaultsSuiteName) ?? .standard
 }
 
-struct RuntimeError: Error, CustomStringConvertible {
-    let description: String
-    let alertTitle: String
+package struct RuntimeError: Error, CustomStringConvertible {
+    package let description: String
+    package let alertTitle: String
 
-    init(_ description: String, alertTitle: String = "Could Not Start LightPet") {
+    package init(_ description: String, alertTitle: String = "Could Not Start LightPet") {
         self.description = description
         self.alertTitle = alertTitle
     }
 }
 
-func noPetsFoundError(libraryURL: URL) -> RuntimeError {
+package func noPetsFoundError(libraryURL: URL) -> RuntimeError {
     RuntimeError(
         "No valid pets were found in \(libraryURL.path).\n\nAdd a pet folder under \(libraryURL.path)/<pet-id>/ containing pet.json and spritesheet.webp, then launch LightPet again.",
         alertTitle: "No Pets Found"
     )
 }
 
-func noLoadablePetsError(libraryURL: URL, underlyingError: Error?) -> RuntimeError {
+package func noLoadablePetsError(libraryURL: URL, underlyingError: Error?) -> RuntimeError {
     let detail = underlyingError.map { "\n\nLast load error: \($0)" } ?? ""
     return RuntimeError(
         "No loadable pets were found in \(libraryURL.path).\n\nAdd a pet folder under \(libraryURL.path)/<pet-id>/ containing a valid pet.json and spritesheet.webp, then launch LightPet again.\(detail)",

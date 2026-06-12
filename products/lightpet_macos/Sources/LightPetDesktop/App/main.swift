@@ -1,6 +1,8 @@
 import AppKit
 import Darwin
 import Foundation
+import LightPetDesktopCore
+import LightPetDesktopRendering
 
 private var strongAppDelegate: AppDelegate?
 

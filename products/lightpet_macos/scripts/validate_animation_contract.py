@@ -109,15 +109,15 @@ def render_swift_contract(contract: dict[str, Any]) -> str:
         "",
         "import Foundation",
         "",
-        f"let cellWidth = {atlas['cellWidth']}",
-        f"let cellHeight = {atlas['cellHeight']}",
-        f"let atlasColumns = {atlas['columns']}",
-        f"let atlasRows = {atlas['rows']}",
-        "let atlasWidth = cellWidth * atlasColumns",
-        "let atlasHeight = cellHeight * atlasRows",
-        f"let visibleAlphaThreshold: UInt8 = {atlas['visibleAlphaThreshold']}",
+        f"package let cellWidth = {atlas['cellWidth']}",
+        f"package let cellHeight = {atlas['cellHeight']}",
+        f"package let atlasColumns = {atlas['columns']}",
+        f"package let atlasRows = {atlas['rows']}",
+        "package let atlasWidth = cellWidth * atlasColumns",
+        "package let atlasHeight = cellHeight * atlasRows",
+        f"package let visibleAlphaThreshold: UInt8 = {atlas['visibleAlphaThreshold']}",
         "",
-        "let animationRows: [AnimationRow] = [",
+        "package let animationRows: [AnimationRow] = [",
     ]
 
     for state_payload in states:

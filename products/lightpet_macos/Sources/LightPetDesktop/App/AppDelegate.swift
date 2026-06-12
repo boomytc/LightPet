@@ -1,14 +1,8 @@
 import AppKit
 import Darwin
 import Foundation
-
-func shouldPetPanelIgnoreMouseEvents(
-    insideVisibleSprite: Bool,
-    interactionActive: Bool,
-    contextMenuOpen: Bool
-) -> Bool {
-    !(insideVisibleSprite || interactionActive || contextMenuOpen)
-}
+import LightPetDesktopCore
+import LightPetDesktopRendering
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -23,7 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     init(options: LaunchOptions, package: PetPackage) {
         self.options = options
         self.currentPackage = package
-        self.currentScale = options.scale
+        self.currentScale = CGFloat(options.scale)
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -111,12 +105,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     print("Resize smoke test failed: app objects were released.")
                     exit(1)
                 }
-                self.petView(view, setScale: scale)
+                self.petView(view, setScale: CGFloat(scale))
                 guard let panel = self.panel else {
                     print("Resize smoke test failed: panel is missing.")
                     exit(1)
                 }
-                let expected = NSSize(width: CGFloat(cellWidth) * scale, height: CGFloat(cellHeight) * scale)
+                let expected = NSSize(width: CGFloat(cellWidth) * CGFloat(scale), height: CGFloat(cellHeight) * CGFloat(scale))
                 let actual = panel.frame.size
                 guard abs(actual.width - expected.width) < 0.5, abs(actual.height - expected.height) < 0.5 else {
                     print("Resize smoke test failed: expected \(expected), got \(actual).")

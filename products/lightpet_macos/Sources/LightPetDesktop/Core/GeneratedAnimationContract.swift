@@ -3,15 +3,15 @@
 
 import Foundation
 
-let cellWidth = 192
-let cellHeight = 208
-let atlasColumns = 8
-let atlasRows = 9
-let atlasWidth = cellWidth * atlasColumns
-let atlasHeight = cellHeight * atlasRows
-let visibleAlphaThreshold: UInt8 = 16
+package let cellWidth = 192
+package let cellHeight = 208
+package let atlasColumns = 8
+package let atlasRows = 9
+package let atlasWidth = cellWidth * atlasColumns
+package let atlasHeight = cellHeight * atlasRows
+package let visibleAlphaThreshold: UInt8 = 16
 
-let animationRows: [AnimationRow] = [
+package let animationRows: [AnimationRow] = [
     .init(
         state: "idle",
         row: 0,

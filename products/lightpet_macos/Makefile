@@ -31,6 +31,7 @@ generate-contract: ## 从动画契约重新生成 Swift 运行时数据
 	python3 scripts/validate_animation_contract.py --update
 
 test: ## 运行 macOS 产品本地测试
+	swift package clean
 	swift test
 
 resize-smoke-test: ## 运行桌面尺寸冒烟测试
