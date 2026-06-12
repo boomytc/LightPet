@@ -105,8 +105,8 @@ scripts/package_app.sh
 
 ## 渲染内容
 
-- 从 `pet.json` 加载本地 Codex 宠物清单。
-- 相对于清单 URL 解析 `spritesheetPath`。
+- 从命名为 `pet.json` 的本地 Codex 宠物清单加载。
+- 要求 `spritesheetPath` 固定为 `spritesheet.webp`，并加载相邻的 `spritesheet.webp`。
 - 将 `1536x1872` 的图集渲染为 `8x9` 单元格。
 - 使用 `192x208` 的单元格和 Codex 行/帧时长表。
 - 播放与自定义 Codex 宠物相同的命名状态。
@@ -133,7 +133,7 @@ ${CODEX_HOME:-$HOME/.codex}/pets/<pet-id>/
 }
 ```
 
-对于右键文件夹选择，文件夹必须包含 `pet.json`、`spritesheet.webp`，且 `pet.json` 必须设置 `"spritesheetPath": "spritesheet.webp"`。
+所有加载入口，包括 `--pet path/to/pet.json` 和右键文件夹选择，都要求文件夹包含 `pet.json`、相邻的 `spritesheet.webp`，且 `pet.json` 必须设置 `"spritesheetPath": "spritesheet.webp"`。
 
 `rendering` 是可选字段：`pixelated` 用于像素风，`smooth` 用于软萌 3D、手绘、扁平插画等非像素风。省略时默认为 `pixelated`。
 

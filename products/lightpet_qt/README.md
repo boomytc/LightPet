@@ -69,3 +69,7 @@ PySide6/Qt runtime can consume it, and validates the bundled example spritesheet
 `spritesheet.webp` must be exactly `1536x1872` with an `8x9` grid of
 `192x208` cells. Used cells must contain visible pixels, and unused cells after
 each row's frame count must be fully transparent.
+
+All loading paths, including `--pet path/to/pet.json`, require the manifest file
+to be named `pet.json`, require `"spritesheetPath": "spritesheet.webp"`, and
+load the adjacent `spritesheet.webp`.

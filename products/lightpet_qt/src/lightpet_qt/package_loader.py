@@ -15,6 +15,8 @@ from .contract import AnimationContract, AnimationRow, MIN_VISIBLE_PIXELS, defau
 DEFAULTS_ORGANIZATION = "LightPet"
 DEFAULTS_APPLICATION = "LightPetQt"
 LAST_CODEX_PET_ID_KEY = "lastCodexPetID"
+REQUIRED_MANIFEST_FILENAME = "pet.json"
+REQUIRED_SPRITESHEET_FILENAME = "spritesheet.webp"
 
 
 class PetRuntimeError(RuntimeError):
@@ -112,7 +114,7 @@ def load_pet_package(manifest_path: Path | str, contract: AnimationContract | No
     active_contract = contract or default_contract()
     manifest_file = Path(manifest_path).expanduser().resolve()
     manifest = load_pet_manifest(manifest_file)
-    spritesheet_path = resolve_spritesheet_path(manifest, manifest_file)
+    spritesheet_path = validate_pet_package_surface(manifest, manifest_file)
     atlas = QImage(str(spritesheet_path))
     if atlas.isNull():
         raise PetRuntimeError(f"Could not load spritesheet at {spritesheet_path}.")
@@ -130,15 +132,12 @@ def load_pet_package_from_directory(
     contract: AnimationContract | None = None,
 ) -> PetPackage:
     directory = Path(directory_path).expanduser().resolve()
-    manifest_path = directory / "pet.json"
+    manifest_path = directory / REQUIRED_MANIFEST_FILENAME
     if not manifest_path.exists():
         raise PetRuntimeError("Selected folder must contain pet.json.")
-    spritesheet_path = directory / "spritesheet.webp"
+    spritesheet_path = directory / REQUIRED_SPRITESHEET_FILENAME
     if not spritesheet_path.exists():
         raise PetRuntimeError("Selected folder must contain spritesheet.webp.")
-    manifest = load_pet_manifest(manifest_path)
-    if manifest.spritesheet_path != "spritesheet.webp":
-        raise PetRuntimeError("pet.json must set spritesheetPath to spritesheet.webp.")
     return load_pet_package(manifest_path, contract)
 
 
@@ -170,11 +169,16 @@ def load_pet_manifest(manifest_path: Path | str) -> PetManifest:
     )
 
 
-def resolve_spritesheet_path(manifest: PetManifest, manifest_path: Path | str) -> Path:
-    candidate = Path(manifest.spritesheet_path).expanduser()
-    if not candidate.is_absolute():
-        candidate = Path(manifest_path).expanduser().resolve().parent / candidate
-    return candidate.resolve()
+def validate_pet_package_surface(manifest: PetManifest, manifest_path: Path | str) -> Path:
+    manifest_file = Path(manifest_path).expanduser().resolve()
+    if manifest_file.name != REQUIRED_MANIFEST_FILENAME:
+        raise PetRuntimeError("Pet manifest path must be named pet.json.")
+    if manifest.spritesheet_path != REQUIRED_SPRITESHEET_FILENAME:
+        raise PetRuntimeError("pet.json must set spritesheetPath to spritesheet.webp.")
+    spritesheet_path = manifest_file.parent / REQUIRED_SPRITESHEET_FILENAME
+    if not spritesheet_path.exists():
+        raise PetRuntimeError("Pet package must contain spritesheet.webp next to pet.json.")
+    return spritesheet_path.resolve()
 
 
 def discover_pet_choices(library_path: Path | str | None = None) -> list[PetChoice]:
@@ -195,11 +199,8 @@ def pet_choice(manifest_path: Path | str) -> PetChoice | None:
     manifest_file = Path(manifest_path).expanduser().resolve()
     try:
         manifest = load_pet_manifest(manifest_file)
+        validate_pet_package_surface(manifest, manifest_file)
     except PetRuntimeError:
-        return None
-    if manifest.spritesheet_path != "spritesheet.webp":
-        return None
-    if not resolve_spritesheet_path(manifest, manifest_file).exists():
         return None
     return PetChoice(manifest=manifest, manifest_path=manifest_file)
 
@@ -209,9 +210,11 @@ def pet_manifest_paths(root: Path | str) -> Iterable[Path]:
     if not root_path.is_dir():
         return []
     return (
-        (entry / "pet.json").resolve()
+        (entry / REQUIRED_MANIFEST_FILENAME).resolve()
         for entry in root_path.iterdir()
-        if entry.is_dir() and not entry.name.startswith(".") and (entry / "pet.json").exists()
+        if entry.is_dir()
+        and not entry.name.startswith(".")
+        and (entry / REQUIRED_MANIFEST_FILENAME).exists()
     )
 
 
@@ -308,12 +311,12 @@ def ensure_codex_pet_library_exists() -> Path:
 
 
 def codex_pet_manifest_path(pet_id: str) -> Path:
-    return codex_pet_library_path() / pet_id / "pet.json"
+    return codex_pet_library_path() / pet_id / REQUIRED_MANIFEST_FILENAME
 
 
 def codex_pet_id_for(manifest_path: Path | str) -> str | None:
     manifest_file = Path(manifest_path).expanduser().resolve()
-    if manifest_file.name != "pet.json":
+    if manifest_file.name != REQUIRED_MANIFEST_FILENAME:
         return None
     pet_dir = manifest_file.parent
     try:
@@ -369,4 +372,3 @@ def _alpha_map(image: QImage, width: int, height: int) -> bytes:
         row = data[source_start : source_start + width * 4]
         alpha[y * width : (y + 1) * width] = row[3::4]
     return bytes(alpha)
-

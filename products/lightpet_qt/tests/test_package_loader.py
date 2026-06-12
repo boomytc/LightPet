@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import json
+import shutil
+import tempfile
+from pathlib import Path
 import unittest
 
 from lightpet_qt.contract import DEFAULT_CONTRACT_PATH, load_animation_contract
-from lightpet_qt.package_loader import load_pet_package
+from lightpet_qt.package_loader import PetRuntimeError, load_pet_package, pet_choice
 
 
 class PackageLoaderTests(unittest.TestCase):
@@ -24,7 +28,22 @@ class PackageLoaderTests(unittest.TestCase):
 
         self.assertTrue(any(alpha > contract.atlas.visible_alpha_threshold for alpha in frame.alpha))
 
+    def test_direct_manifest_rejects_noncanonical_spritesheet_path(self) -> None:
+        contract = load_animation_contract(DEFAULT_CONTRACT_PATH)
+        example_dir = Path("examples/pets/lulu")
+        payload = json.loads((example_dir / "pet.json").read_text(encoding="utf-8"))
+        payload["spritesheetPath"] = "alt.webp"
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            package_dir = Path(temp_dir)
+            (package_dir / "pet.json").write_text(json.dumps(payload), encoding="utf-8")
+            shutil.copyfile(example_dir / "spritesheet.webp", package_dir / "alt.webp")
+
+            with self.assertRaisesRegex(PetRuntimeError, "spritesheetPath to spritesheet.webp"):
+                load_pet_package(package_dir / "pet.json", contract)
+
+            self.assertIsNone(pet_choice(package_dir / "pet.json"))
+
 
 if __name__ == "__main__":
     unittest.main()
-

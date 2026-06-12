@@ -13,6 +13,8 @@ let visibleAlphaThreshold: UInt8 = 16
 let availableScales: [CGFloat] = [0.5, 0.75, 1, 1.25, 1.5]
 let defaultsSuiteName = "LightPetDesktop"
 let lastCodexPetIDKey = "lastCodexPetID"
+let requiredManifestFilename = "pet.json"
+let requiredSpritesheetFilename = "spritesheet.webp"
 
 struct AnimationRow {
     let state: String
@@ -289,24 +291,20 @@ func loadPetPackage(options: LaunchOptions) throws -> PetPackage {
 }
 
 func loadPetPackage(directoryURL: URL) throws -> PetPackage {
-    let manifestURL = directoryURL.appendingPathComponent("pet.json").standardizedFileURL
+    let manifestURL = directoryURL.appendingPathComponent(requiredManifestFilename).standardizedFileURL
     guard FileManager.default.fileExists(atPath: manifestURL.path) else {
         throw RuntimeError("Selected folder must contain pet.json.")
     }
-    let spritesheetURL = directoryURL.appendingPathComponent("spritesheet.webp").standardizedFileURL
+    let spritesheetURL = directoryURL.appendingPathComponent(requiredSpritesheetFilename).standardizedFileURL
     guard FileManager.default.fileExists(atPath: spritesheetURL.path) else {
         throw RuntimeError("Selected folder must contain spritesheet.webp.")
-    }
-    let manifest = try loadPetManifest(manifestURL: manifestURL)
-    guard manifest.spritesheetPath == "spritesheet.webp" else {
-        throw RuntimeError("pet.json must set spritesheetPath to spritesheet.webp.")
     }
     return try loadPetPackage(manifestURL: manifestURL)
 }
 
 func loadPetPackage(manifestURL: URL) throws -> PetPackage {
     let manifest = try loadPetManifest(manifestURL: manifestURL)
-    let spritesheetURL = resolveSpritesheetURL(manifest: manifest, manifestURL: manifestURL)
+    let spritesheetURL = try validatePetPackageSurface(manifest: manifest, manifestURL: manifestURL)
 
     guard let image = NSImage(contentsOf: spritesheetURL) else {
         throw RuntimeError("Could not load spritesheet at \(spritesheetURL.path).")
@@ -330,6 +328,24 @@ func loadPetPackage(manifestURL: URL) throws -> PetPackage {
 func loadPetManifest(manifestURL: URL) throws -> PetManifest {
     let data = try Data(contentsOf: manifestURL)
     return try JSONDecoder().decode(PetManifest.self, from: data)
+}
+
+func validatePetPackageSurface(manifest: PetManifest, manifestURL: URL) throws -> URL {
+    let standardizedManifestURL = manifestURL.standardizedFileURL
+    guard standardizedManifestURL.lastPathComponent == requiredManifestFilename else {
+        throw RuntimeError("Pet manifest path must be named pet.json.")
+    }
+    guard manifest.spritesheetPath == requiredSpritesheetFilename else {
+        throw RuntimeError("pet.json must set spritesheetPath to spritesheet.webp.")
+    }
+    let spritesheetURL = standardizedManifestURL
+        .deletingLastPathComponent()
+        .appendingPathComponent(requiredSpritesheetFilename)
+        .standardizedFileURL
+    guard FileManager.default.fileExists(atPath: spritesheetURL.path) else {
+        throw RuntimeError("Pet package must contain spritesheet.webp next to pet.json.")
+    }
+    return spritesheetURL
 }
 
 func discoverPetChoices() -> [PetChoice] {
@@ -362,17 +378,13 @@ func discoverPetChoices(in libraryURL: URL) -> [PetChoice] {
 func petChoice(manifestURL: URL) -> PetChoice? {
     guard
         let manifest = try? loadPetManifest(manifestURL: manifestURL),
-        manifest.spritesheetPath == "spritesheet.webp"
+        (try? validatePetPackageSurface(manifest: manifest, manifestURL: manifestURL)) != nil
     else {
         return nil
     }
 
     // Keep context-menu discovery lightweight. Full spritesheet decode,
     // frame extraction, and alpha validation happen only when a pet is loaded.
-    let spritesheetURL = resolveSpritesheetURL(manifest: manifest, manifestURL: manifestURL)
-    guard FileManager.default.fileExists(atPath: spritesheetURL.path) else {
-        return nil
-    }
     return PetChoice(manifest: manifest, manifestURL: manifestURL)
 }
 
@@ -388,7 +400,7 @@ func petManifestURLs(in root: URL) -> [URL] {
     }
 
     return entries.compactMap { entry in
-        let manifestURL = entry.appendingPathComponent("pet.json").standardizedFileURL
+        let manifestURL = entry.appendingPathComponent(requiredManifestFilename).standardizedFileURL
         return FileManager.default.fileExists(atPath: manifestURL.path) ? manifestURL : nil
     }
 }
@@ -417,13 +429,6 @@ func resolveManifestURL(options: LaunchOptions) throws -> URL {
     }
 
     throw noPetsFoundError(libraryURL: libraryURL)
-}
-
-func resolveSpritesheetURL(manifest: PetManifest, manifestURL: URL) -> URL {
-    if manifest.spritesheetPath.hasPrefix("/") {
-        return URL(fileURLWithPath: manifest.spritesheetPath).standardizedFileURL
-    }
-    return manifestURL.deletingLastPathComponent().appendingPathComponent(manifest.spritesheetPath).standardizedFileURL
 }
 
 func fileURL(from path: String) -> URL {
@@ -479,7 +484,7 @@ func codexHomeURL() -> URL {
 func codexPetManifestURL(petID: String) -> URL {
     codexPetLibraryURL()
         .appendingPathComponent(petID)
-        .appendingPathComponent("pet.json")
+        .appendingPathComponent(requiredManifestFilename)
         .standardizedFileURL
 }
 
@@ -496,7 +501,7 @@ func rememberCodexPet(package: PetPackage) {
 
 func codexPetID(for manifestURL: URL) -> String? {
     let standardizedManifestURL = manifestURL.standardizedFileURL
-    guard standardizedManifestURL.lastPathComponent == "pet.json" else {
+    guard standardizedManifestURL.lastPathComponent == requiredManifestFilename else {
         return nil
     }
 

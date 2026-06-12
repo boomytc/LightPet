@@ -1,6 +1,7 @@
 # Makefile
-.PHONY: help build run preview validate-contract resize-smoke-test package-app \
-	qt-venv qt-install qt-run qt-run-example qt-validate qt-test qt-resize-smoke-test clean
+.PHONY: help build run preview validate-contract validate-all diff-contracts \
+	resize-smoke-test package-app qt-venv qt-install qt-run qt-run-example \
+	qt-validate qt-test qt-resize-smoke-test clean
 
 .DEFAULT_GOAL := help
 
@@ -24,6 +25,12 @@ preview: ## 启动当前产品的 Web 预览服务
 
 validate-contract: ## 校验动画契约和 Swift 运行时一致
 	$(MAKE) -C $(MACOS_PRODUCT_DIR) validate-contract
+
+validate-all: validate-contract qt-validate qt-test diff-contracts ## 校验 macOS、Qt 和两份契约 JSON 一致性
+
+diff-contracts: ## 对比 macOS 和 Qt 产品的动画契约 JSON
+	diff -u $(MACOS_PRODUCT_DIR)/docs/pet-animation-contract.json $(QT_PRODUCT_DIR)/docs/pet-animation-contract.json
+	@echo "Animation contract JSON files match."
 
 resize-smoke-test: ## 运行桌面尺寸冒烟测试
 	$(MAKE) -C $(MACOS_PRODUCT_DIR) resize-smoke-test

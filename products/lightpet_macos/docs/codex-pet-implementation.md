@@ -41,7 +41,7 @@ ${CODEX_HOME:-$HOME/.codex}/pets/<pet-id>/
 }
 ```
 
-应用通过文件夹名称发现宠物，读取 `pet.json`，然后加载由 `spritesheetPath` 命名的精灵表。对于右键文件夹选择，LightPet 期望所选文件夹包含 `pet.json` 和 `spritesheet.webp`，并且期望 `pet.json` 设置 `"spritesheetPath": "spritesheet.webp"`。
+应用通过文件夹名称发现宠物，读取命名为 `pet.json` 的清单，然后加载相邻的 `spritesheet.webp`。所有加载入口都要求包内包含 `pet.json` 和 `spritesheet.webp`，并且要求 `pet.json` 设置 `"spritesheetPath": "spritesheet.webp"`。
 
 `rendering` 是可选的。像素艺术使用 `pixelated`，非像素风格（如平滑 3D 吉祥物艺术、手绘精灵或平面插画）使用 `smooth`。省略时默认为 `pixelated`。
 
@@ -207,9 +207,9 @@ Animation rows:
 最小的 Web 运行时是：
 
 1. 获取 `pet.json`。
-2. 根据清单 URL 解析 `spritesheetPath`。
+2. 确认清单文件名是 `pet.json`，并且 `spritesheetPath` 是固定值 `spritesheet.webp`。
 3. 对于活动状态，读取 `row`、`frames` 和 `durations`。
-4. 使用精灵表作为 CSS 背景渲染一个 `192x208` 视口。
+4. 使用相邻的 `spritesheet.webp` 作为 CSS 背景渲染一个 `192x208` 视口。
 5. 按状态时长表推进帧索引。
 
 CSS 背景计算如下：

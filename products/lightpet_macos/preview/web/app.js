@@ -7,6 +7,8 @@ let ATLAS_HEIGHT = CELL_HEIGHT * ATLAS_ROWS;
 let VISIBLE_ALPHA_THRESHOLD = 16;
 const CHROMA_KEY = { r: 0, g: 255, b: 0, threshold: 96 };
 const CONTRACT_URL = "../../docs/pet-animation-contract.json";
+const REQUIRED_MANIFEST_FILENAME = "pet.json";
+const REQUIRED_SPRITESHEET_FILENAME = "spritesheet.webp";
 
 let animationRows = [];
 let rowByState = new Map();
@@ -52,8 +54,16 @@ let currentAtlasCanvas = null;
 let baseAtlasCanvas = null;
 let qaData = null;
 
-function resolveAssetUrl(assetPath, manifestPath) {
-  return new URL(assetPath, new URL(manifestPath, window.location.href)).href;
+function validatePetPackageSurface(manifest, manifestPath) {
+  const manifestUrlObject = new URL(manifestPath, window.location.href);
+  const manifestFilename = manifestUrlObject.pathname.split("/").pop();
+  if (manifestFilename !== REQUIRED_MANIFEST_FILENAME) {
+    throw new Error("Pet manifest path must be named pet.json.");
+  }
+  if (manifest.spritesheetPath !== REQUIRED_SPRITESHEET_FILENAME) {
+    throw new Error("pet.json must set spritesheetPath to spritesheet.webp.");
+  }
+  return new URL(REQUIRED_SPRITESHEET_FILENAME, manifestUrlObject).href;
 }
 
 async function loadAnimationContract() {
@@ -137,12 +147,11 @@ function canvasToObjectUrl(canvas) {
 }
 
 async function setPetPackage(manifest, manifestPath) {
-  const spritesheetPath = manifest.spritesheetPath || "spritesheet.webp";
   rendering = manifest.rendering === "smooth" ? "smooth" : "pixelated";
   sprite.classList.toggle("smooth", rendering === "smooth");
   atlasImage.classList.toggle("smooth", rendering === "smooth");
 
-  originalSheetUrl = resolveAssetUrl(spritesheetPath, manifestPath);
+  originalSheetUrl = validatePetPackageSurface(manifest, manifestPath);
   activeSheetUrl = originalSheetUrl;
   const image = await loadImage(activeSheetUrl);
   baseAtlasCanvas = imageToCanvas(image);

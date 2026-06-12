@@ -38,6 +38,7 @@ For Codex compatibility, adding a new action to an existing pet means regenerati
 From the repository root, macOS product commands:
 
 ```bash
+make validate-all
 make validate-contract
 make build
 make preview

@@ -42,6 +42,7 @@ root Makefile targets that delegate into a product.
 ## Commands
 
 ```bash
+make validate-all
 make validate-contract
 make build
 make preview
@@ -57,6 +58,9 @@ make qt-validate
 make qt-test
 make qt-run-example
 ```
+
+`make validate-all` runs the macOS contract check, Qt contract check, Qt tests,
+and a `diff -u` comparison of the two product-local contract JSON files.
 
 Equivalent direct product usage:
 
