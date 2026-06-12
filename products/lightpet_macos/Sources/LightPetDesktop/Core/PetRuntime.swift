@@ -308,7 +308,18 @@ func loadPetPackage(manifestURL: URL) throws -> PetPackage {
 
 func loadPetManifest(manifestURL: URL) throws -> PetManifest {
     let data = try Data(contentsOf: manifestURL)
-    return try JSONDecoder().decode(PetManifest.self, from: data)
+    let manifest = try JSONDecoder().decode(PetManifest.self, from: data)
+    try validateRequiredManifestString(manifest.id, key: "id")
+    try validateRequiredManifestString(manifest.displayName, key: "displayName")
+    try validateRequiredManifestString(manifest.description, key: "description")
+    try validateRequiredManifestString(manifest.spritesheetPath, key: "spritesheetPath")
+    return manifest
+}
+
+private func validateRequiredManifestString(_ value: String, key: String) throws {
+    guard !value.isEmpty else {
+        throw RuntimeError("pet.json must contain a non-empty \(key).")
+    }
 }
 
 func validatePetPackageSurface(manifest: PetManifest, manifestURL: URL) throws -> URL {
@@ -397,12 +408,12 @@ func resolveManifestURL(options: LaunchOptions) throws -> URL {
 
     let libraryURL = try ensureCodexPetLibraryExists()
 
-    if let petID = options.petID ?? lastCodexPetID() {
+    for petID in preferredCodexPetIDs(options: options) {
         let manifestURL = codexPetManifestURL(petID: petID)
         if FileManager.default.fileExists(atPath: manifestURL.path) {
             return manifestURL
         }
-        fputs("LightPetDesktop warning: pet '\(petID)' was not found under \(libraryURL.path); falling back to the first available Codex pet.\n", stderr)
+        fputs("LightPetDesktop warning: pet '\(petID)' was not found under \(libraryURL.path); trying the next pet candidate.\n", stderr)
     }
 
     if let fallback = discoverPetChoices(in: libraryURL).first {
@@ -410,6 +421,18 @@ func resolveManifestURL(options: LaunchOptions) throws -> URL {
     }
 
     throw noPetsFoundError(libraryURL: libraryURL)
+}
+
+func preferredCodexPetIDs(options: LaunchOptions) -> [String] {
+    var petIDs: [String] = []
+    var seen = Set<String>()
+    for petID in [options.petID, lastCodexPetID()] {
+        guard let petID, !petID.isEmpty, seen.insert(petID).inserted else {
+            continue
+        }
+        petIDs.append(petID)
+    }
+    return petIDs
 }
 
 func fileURL(from path: String) -> URL {

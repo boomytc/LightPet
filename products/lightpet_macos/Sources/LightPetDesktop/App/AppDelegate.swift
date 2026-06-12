@@ -2,6 +2,14 @@ import AppKit
 import Darwin
 import Foundation
 
+func shouldPetPanelIgnoreMouseEvents(
+    insideVisibleSprite: Bool,
+    interactionActive: Bool,
+    contextMenuOpen: Bool
+) -> Bool {
+    !(insideVisibleSprite || interactionActive || contextMenuOpen)
+}
+
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let options: LaunchOptions
@@ -44,6 +52,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.panel = panel
         self.petView = petView
 
+        updatePanelMouseRouting(panel: panel, petView: petView)
         startPointerRoutingTimer(panel: panel, petView: petView)
 
         print("LightPetDesktop loaded \(currentPackage.manifest.displayName) from \(currentPackage.manifestURL.path)")
@@ -68,17 +77,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 guard let panel, let petView else {
                     return
                 }
-                guard !self.isContextMenuOpen else {
-                    panel.ignoresMouseEvents = false
-                    return
-                }
-                let insideVisibleSprite = petView.containsVisiblePixel(screenPoint: NSEvent.mouseLocation)
-                panel.ignoresMouseEvents = false
-                petView.updatePointerPresence(insideVisibleSprite: insideVisibleSprite)
+                self.updatePanelMouseRouting(panel: panel, petView: petView)
             }
         }
         pointerTimer = timer
         RunLoop.main.add(timer, forMode: .common)
+    }
+
+    private func updatePanelMouseRouting(panel: PetPanel, petView: PetAnimationView) {
+        let insideVisibleSprite = petView.containsVisiblePixel(screenPoint: NSEvent.mouseLocation)
+        panel.ignoresMouseEvents = shouldPetPanelIgnoreMouseEvents(
+            insideVisibleSprite: insideVisibleSprite,
+            interactionActive: petView.isPointerInteractionActive,
+            contextMenuOpen: isContextMenuOpen
+        )
+        if !isContextMenuOpen {
+            petView.updatePointerPresence(insideVisibleSprite: insideVisibleSprite)
+        }
+    }
+
+    private func updatePanelMouseRoutingIfPossible() {
+        guard let panel, let petView else {
+            return
+        }
+        updatePanelMouseRouting(panel: panel, petView: petView)
     }
 
     private func runResizeSmokeTest(view: PetAnimationView) {
@@ -146,8 +168,8 @@ extension AppDelegate: PetAnimationViewMenuDelegate {
         let newSize = NSSize(width: CGFloat(cellWidth) * scale, height: CGFloat(cellHeight) * scale)
         let proposedOrigin = NSPoint(x: oldCenter.x - newSize.width / 2, y: oldCenter.y - newSize.height / 2)
         panel.setFrame(NSRect(origin: clampedWindowOrigin(proposedOrigin, size: newSize), size: newSize), display: true)
-        panel.ignoresMouseEvents = false
         panel.orderFrontRegardless()
+        updatePanelMouseRouting(panel: panel, petView: view)
     }
 
     func petView(_ view: PetAnimationView, selectPetAt manifestURL: URL) {
@@ -188,6 +210,7 @@ extension AppDelegate: PetAnimationViewMenuDelegate {
         rememberCodexPet(package: package)
         panel?.title = package.manifest.displayName
         view.updatePackage(package)
+        updatePanelMouseRoutingIfPossible()
         print("LightPetDesktop switched to \(package.manifest.displayName) from \(package.manifestURL.path)")
     }
 
@@ -198,12 +221,7 @@ extension AppDelegate: PetAnimationViewMenuDelegate {
 
     func petViewDidCloseContextMenu(_ view: PetAnimationView) {
         isContextMenuOpen = false
-        guard let panel, let petView else {
-            return
-        }
-        let insideVisibleSprite = petView.containsVisiblePixel(screenPoint: NSEvent.mouseLocation)
-        panel.ignoresMouseEvents = false
-        petView.updatePointerPresence(insideVisibleSprite: insideVisibleSprite)
+        updatePanelMouseRoutingIfPossible()
     }
 
     func petViewQuit(_ view: PetAnimationView) {

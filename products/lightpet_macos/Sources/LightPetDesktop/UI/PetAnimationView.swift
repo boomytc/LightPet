@@ -166,6 +166,10 @@ final class PetAnimationView: NSView {
         stateController.isDragging
     }
 
+    var isPointerInteractionActive: Bool {
+        stateController.isPressed || stateController.isDragging
+    }
+
     func updatePackage(_ package: PetPackage) {
         self.package = package
         activeRow = rowByState["idle"] ?? animationRows[0]

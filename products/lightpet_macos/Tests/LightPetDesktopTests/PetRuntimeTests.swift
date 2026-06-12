@@ -51,6 +51,70 @@ final class PetRuntimeTests: XCTestCase {
         }
     }
 
+    func testResolveManifestURLTriesLastSelectedPetWhenRequestedIDIsMissing() throws {
+        try withTemporaryCodexHome { codexHomeURL in
+            let petsURL = codexHomeURL.appendingPathComponent("pets")
+            let firstByTitleURL = petsURL.appendingPathComponent("alpha")
+            try writeCanonicalPackageSurface(in: firstByTitleURL, id: "alpha", displayName: "Alpha")
+            let lastSelectedURL = petsURL.appendingPathComponent("zulu")
+            try writeCanonicalPackageSurface(in: lastSelectedURL, id: "zulu", displayName: "Zulu")
+
+            try withTemporaryLastCodexPetID("zulu") {
+                let options = LaunchOptions(manifestPath: nil, petID: "missing")
+                let manifestURL = try resolveManifestURL(options: options)
+
+                XCTAssertEqual(manifestURL, lastSelectedURL.appendingPathComponent("pet.json").standardizedFileURL)
+            }
+        }
+    }
+
+    func testLoadPetManifestRejectsEmptyRequiredStrings() throws {
+        let validFields = [
+            "id": "valid",
+            "displayName": "Valid",
+            "description": "Valid test pet.",
+            "spritesheetPath": "spritesheet.webp",
+            "rendering": "pixelated"
+        ]
+
+        for key in ["id", "displayName", "description", "spritesheetPath"] {
+            try withTemporaryDirectory { directoryURL in
+                var fields = validFields
+                fields[key] = ""
+                let data = try JSONSerialization.data(withJSONObject: fields, options: [.prettyPrinted, .sortedKeys])
+                let manifestURL = directoryURL.appendingPathComponent("pet.json")
+                try data.write(to: manifestURL)
+
+                XCTAssertThrowsError(try loadPetManifest(manifestURL: manifestURL)) { error in
+                    XCTAssertTrue("\(error)".contains("non-empty \(key)"))
+                }
+            }
+        }
+    }
+
+    func testPetPanelMouseRoutingIgnoresOnlyTransparentIdlePanel() {
+        XCTAssertTrue(shouldPetPanelIgnoreMouseEvents(
+            insideVisibleSprite: false,
+            interactionActive: false,
+            contextMenuOpen: false
+        ))
+        XCTAssertFalse(shouldPetPanelIgnoreMouseEvents(
+            insideVisibleSprite: true,
+            interactionActive: false,
+            contextMenuOpen: false
+        ))
+        XCTAssertFalse(shouldPetPanelIgnoreMouseEvents(
+            insideVisibleSprite: false,
+            interactionActive: true,
+            contextMenuOpen: false
+        ))
+        XCTAssertFalse(shouldPetPanelIgnoreMouseEvents(
+            insideVisibleSprite: false,
+            interactionActive: false,
+            contextMenuOpen: true
+        ))
+    }
+
     func testLoadPetPackageFallsBackWhenRequestedPackageFailsSurfaceValidation() throws {
         try withTemporaryCodexHome { codexHomeURL in
             let petsURL = codexHomeURL.appendingPathComponent("pets")
@@ -111,6 +175,20 @@ final class PetRuntimeTests: XCTestCase {
             }
             try body(directoryURL)
         }
+    }
+
+    private func withTemporaryLastCodexPetID(_ petID: String, body: () throws -> Void) throws {
+        let defaults = petDefaults()
+        let previousPetID = defaults.string(forKey: lastCodexPetIDKey)
+        defaults.set(petID, forKey: lastCodexPetIDKey)
+        defer {
+            if let previousPetID {
+                defaults.set(previousPetID, forKey: lastCodexPetIDKey)
+            } else {
+                defaults.removeObject(forKey: lastCodexPetIDKey)
+            }
+        }
+        try body()
     }
 
     private func productRoot() -> URL {
