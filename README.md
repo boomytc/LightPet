@@ -44,6 +44,7 @@ root Makefile targets that delegate into a product.
 ```bash
 make validate-all
 make validate-contract
+make macos-test
 make build
 make preview
 make package-app
@@ -59,8 +60,9 @@ make qt-test
 make qt-run-example
 ```
 
-`make validate-all` runs the macOS contract check, Qt contract check, Qt tests,
-and a `diff -u` comparison of the two product-local contract JSON files.
+`make validate-all` runs the macOS contract check, macOS tests, Qt contract
+check, Qt tests, and a `diff -u` comparison of the two product-local contract
+JSON files.
 
 Equivalent direct product usage:
 
@@ -68,6 +70,7 @@ Equivalent direct product usage:
 cd products/lightpet_macos
 make generate-contract
 python3 scripts/validate_animation_contract.py
+swift test
 swift build --product LightPetDesktop
 python3 -m http.server 18091 --directory .
 ```

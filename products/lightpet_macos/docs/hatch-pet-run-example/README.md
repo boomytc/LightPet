@@ -4,6 +4,10 @@ This fixture documents the shape of a Codex `hatch-pet` implementation run for
 creating a LightPet-compatible desktop pet. Real local runs should still live
 under the ignored `.pet-runs/<pet-id>/` directory.
 
+This is product-owned authoring documentation for the macOS runtime package
+surface. It is not a workspace-root runtime asset and should not be copied into
+the repository root.
+
 It intentionally contains only text fixtures. A real run will add generated
 binary artifacts under `references/`, `decoded/`, `frames/`, `final/`, and
 `qa/`; those artifacts remain ignored unless a maintainer deliberately promotes

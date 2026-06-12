@@ -11,6 +11,10 @@ let package = Package(
         .executable(name: "LightPetDesktop", targets: ["LightPetDesktop"])
     ],
     targets: [
-        .executableTarget(name: "LightPetDesktop")
+        .executableTarget(name: "LightPetDesktop"),
+        .testTarget(
+            name: "LightPetDesktopTests",
+            dependencies: ["LightPetDesktop"]
+        )
     ]
 )

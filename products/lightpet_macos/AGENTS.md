@@ -84,6 +84,12 @@ make generate-contract
 python3 scripts/validate_animation_contract.py
 ```
 
+Local tests:
+
+```bash
+make test
+```
+
 Package local app:
 
 ```bash

@@ -1,5 +1,5 @@
 # Makefile
-.PHONY: help build run preview validate-contract generate-contract resize-smoke-test package-app clean
+.PHONY: help build run preview validate-contract generate-contract test resize-smoke-test package-app clean
 
 # 默认目标
 .DEFAULT_GOAL := help
@@ -29,6 +29,9 @@ validate-contract: ## 校验动画契约和生成的 Swift 运行时数据一致
 
 generate-contract: ## 从动画契约重新生成 Swift 运行时数据
 	python3 scripts/validate_animation_contract.py --update
+
+test: ## 运行 macOS 产品本地测试
+	swift test
 
 resize-smoke-test: ## 运行桌面尺寸冒烟测试
 	swift run $(SWIFT_PRODUCT) --show-dock --resize-smoke-test
