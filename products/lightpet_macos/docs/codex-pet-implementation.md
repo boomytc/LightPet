@@ -61,7 +61,7 @@ cell:  192x208
 
 ## 动画表
 
-机器可读的动画契约位于 `docs/pet-animation-contract.json`。下面的表格是面向阅读的说明；修改状态行、帧数或时长时，先更新 JSON，再运行 `python3 scripts/validate_animation_contract.py` 确认 Swift 运行时一致。
+机器可读的动画契约位于 `docs/pet-animation-contract.json`。Swift 运行时使用 `Sources/LightPetDesktop/Core/GeneratedAnimationContract.swift` 中的生成数据。下面的表格是面向阅读的说明；修改状态行、帧数或时长时，先更新 JSON，运行 `make generate-contract` 重新生成 Swift 数据，再运行 `python3 scripts/validate_animation_contract.py` 校验一致性。
 
 | 行 | 状态 | 帧数 | 时长 |
 | --- | --- | ---: | --- |
@@ -299,6 +299,7 @@ preview/web/styles.css
 preview/web/app.js
 Package.swift
 Sources/LightPetDesktop/Core/PetRuntime.swift
+Sources/LightPetDesktop/Core/GeneratedAnimationContract.swift
 Sources/LightPetDesktop/UI/PetAnimationView.swift
 Sources/LightPetDesktop/UI/WindowGeometry.swift
 Sources/LightPetDesktop/App/AppDelegate.swift

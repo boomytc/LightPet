@@ -23,7 +23,7 @@ run: ## 运行当前桌面产品
 preview: ## 启动当前产品的 Web 预览服务
 	$(MAKE) -C $(MACOS_PRODUCT_DIR) preview
 
-validate-contract: ## 校验动画契约和 Swift 运行时一致
+validate-contract: ## 校验 macOS 动画契约和生成运行时数据一致
 	$(MAKE) -C $(MACOS_PRODUCT_DIR) validate-contract
 
 validate-all: validate-contract qt-validate qt-test diff-contracts ## 校验 macOS、Qt 和两份契约 JSON 一致性

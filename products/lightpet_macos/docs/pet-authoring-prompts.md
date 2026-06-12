@@ -78,9 +78,10 @@ Layout requirements:
 
 The machine-readable source of truth is `docs/pet-animation-contract.json`. Use its `states[*].frames`, `states[*].durationsMs`, `purpose`, `mouseMapping`, and `authoringNotes` fields when writing row prompts or targeted repair instructions.
 
-If a prompt, README, Swift runtime, or Web preview disagrees with that contract, update the contract first and then run:
+If a prompt, README, generated Swift runtime data, or Web preview disagrees with that contract, update the contract first and then run:
 
 ```bash
+make generate-contract
 python3 scripts/validate_animation_contract.py
 ```
 

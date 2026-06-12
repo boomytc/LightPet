@@ -66,6 +66,7 @@ Equivalent direct product usage:
 
 ```bash
 cd products/lightpet_macos
+make generate-contract
 python3 scripts/validate_animation_contract.py
 swift build --product LightPetDesktop
 python3 -m http.server 18091 --directory .

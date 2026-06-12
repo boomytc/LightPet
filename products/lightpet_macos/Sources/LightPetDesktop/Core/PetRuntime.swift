@@ -3,13 +3,6 @@ import CoreGraphics
 import Darwin
 import Foundation
 
-let cellWidth = 192
-let cellHeight = 208
-let atlasColumns = 8
-let atlasRows = 9
-let atlasWidth = cellWidth * atlasColumns
-let atlasHeight = cellHeight * atlasRows
-let visibleAlphaThreshold: UInt8 = 16
 let availableScales: [CGFloat] = [0.5, 0.75, 1, 1.25, 1.5]
 let defaultsSuiteName = "LightPetDesktop"
 let lastCodexPetIDKey = "lastCodexPetID"
@@ -26,18 +19,6 @@ struct AnimationRow {
         durations.reduce(0, +)
     }
 }
-
-let animationRows: [AnimationRow] = [
-    .init(state: "idle", row: 0, frameCount: 6, durations: [0.280, 0.110, 0.110, 0.140, 0.140, 0.320]),
-    .init(state: "running-right", row: 1, frameCount: 8, durations: [0.120, 0.120, 0.120, 0.120, 0.120, 0.120, 0.120, 0.220]),
-    .init(state: "running-left", row: 2, frameCount: 8, durations: [0.120, 0.120, 0.120, 0.120, 0.120, 0.120, 0.120, 0.220]),
-    .init(state: "waving", row: 3, frameCount: 4, durations: [0.140, 0.140, 0.140, 0.280]),
-    .init(state: "jumping", row: 4, frameCount: 5, durations: [0.140, 0.140, 0.140, 0.140, 0.280]),
-    .init(state: "failed", row: 5, frameCount: 8, durations: [0.140, 0.140, 0.140, 0.140, 0.140, 0.140, 0.140, 0.240]),
-    .init(state: "waiting", row: 6, frameCount: 6, durations: [0.150, 0.150, 0.150, 0.150, 0.150, 0.260]),
-    .init(state: "running", row: 7, frameCount: 6, durations: [0.120, 0.120, 0.120, 0.120, 0.120, 0.220]),
-    .init(state: "review", row: 8, frameCount: 6, durations: [0.150, 0.150, 0.150, 0.150, 0.150, 0.280]),
-]
 
 let rowByState = Dictionary(uniqueKeysWithValues: animationRows.map { ($0.state, $0) })
 

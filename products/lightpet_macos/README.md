@@ -93,7 +93,11 @@ swift run LightPetDesktop --show-dock --resize-smoke-test
 python3 scripts/validate_animation_contract.py
 ```
 
-这会确认 Swift 运行时中的图集几何、状态行、帧数和时长与 `docs/pet-animation-contract.json` 一致。
+这会确认生成的 Swift 运行时数据 `Sources/LightPetDesktop/Core/GeneratedAnimationContract.swift` 与 `docs/pet-animation-contract.json` 一致。修改动画契约后先运行：
+
+```bash
+make generate-contract
+```
 
 本地 `.app` 打包：
 

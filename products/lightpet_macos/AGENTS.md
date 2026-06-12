@@ -22,14 +22,14 @@ The current runtime contract is intentionally fixed:
 - cell: `192x208`
 - states: `idle`, `running-right`, `running-left`, `waving`, `jumping`, `failed`, `waiting`, `running`, `review`
 
-`docs/pet-animation-contract.json` is the machine-readable source of truth for atlas geometry, row order, frame counts, durations, mouse mappings, and authoring notes. Run `python3 scripts/validate_animation_contract.py` after changing animation metadata.
+`docs/pet-animation-contract.json` is the machine-readable source of truth for atlas geometry, row order, frame counts, durations, mouse mappings, and authoring notes. Swift runtime constants and rows are generated into `Sources/LightPetDesktop/Core/GeneratedAnimationContract.swift`. After changing animation metadata, run `make generate-contract`, then `make validate-contract`.
 
 For Codex compatibility, adding a new action to an existing pet means regenerating or replacing one of these rows. True extra states need a manifest/runtime design first; do not quietly add extra rows or files that the current runtime cannot play.
 
 ## Code Layout
 
 - `Package.swift`: product-local SwiftPM environment for the desktop runtime.
-- `Sources/LightPetDesktop/Core/`: manifest loading, pet discovery, atlas geometry, frame extraction, alpha validation.
+- `Sources/LightPetDesktop/Core/`: generated animation contract data, manifest loading, pet discovery, frame extraction, alpha validation.
 - `Sources/LightPetDesktop/UI/`: AppKit panel, animation view, mouse interaction, state routing.
 - `Sources/LightPetDesktop/App/`: app entrypoint and delegate.
 - `Assets/`: product-local app icon resources.
@@ -80,6 +80,7 @@ swift run LightPetDesktop --show-dock --resize-smoke-test
 Animation contract:
 
 ```bash
+make generate-contract
 python3 scripts/validate_animation_contract.py
 ```
 
@@ -97,8 +98,8 @@ make clean
 
 ## Change Guidance
 
-- Keep Swift and Web animation row metadata in sync with the documented contract.
-- If you change atlas geometry, state names, frame counts, or durations, update Swift, Web preview, README, and docs together.
+- Keep product contract JSON files in sync through the root `make validate-all` diff check.
+- If you change atlas geometry, state names, frame counts, or durations, update `docs/pet-animation-contract.json`, regenerate `GeneratedAnimationContract.swift`, and update README/docs together.
 - Do not commit `.build/`, `.swiftpm/`, `dist/`, `output/`, `.playwright-cli/`, `.pet-runs/`, or raw `$CODEX_HOME/generated_images` files.
 - Do not commit `.pet-runs/` wholesale. Promote only deliberate examples or documentation fixtures.
 - Keep `examples/pets/<id>/` to the runtime package surface unless the user asks to store authoring provenance there.
